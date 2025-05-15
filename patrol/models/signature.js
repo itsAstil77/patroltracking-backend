@@ -8,7 +8,7 @@ const signatureSchema = new mongoose.Schema({
   patrolId: { type: String, required: true },
   checklistId: { type: String, required: false },
   createdDate: { type: Date, default: Date.now },
-  createdTime: { type: String, required: true },
+  // createdTime: { type: String, required: true },
   modifiedDate: { type: Date, default: Date.now },
   modifiedTime: { type: String, required: true },
   isActive: { type: Boolean, default: true }

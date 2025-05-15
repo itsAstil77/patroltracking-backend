@@ -89,7 +89,7 @@ router.post("/", async (req, res) => {
         });
 
         await newUser.save();
-        res.status(201).json({ message: "Signup successful", data: newUser });
+        res.status(200).json({ message: "Signup successful", data: newUser });
 
     } catch (error) {
         res.status(500).json({ message: "Error during signup", error: error.message });
@@ -186,10 +186,10 @@ router.delete("/admin/:adminId", async (req, res) => {
 router.put("/patrol/:patrolId", async (req, res) => {
     try {
         const { patrolId } = req.params;
-        const { username, password, email, patrolGuardName, mobileNumber, companyCode, imageUrl, role } = req.body;
+        const { username, password, email, patrolGuardName, mobileNumber, companyCode, imageUrl, role, department, designation} = req.body;
 
         // ✅ Validate required fields
-        if (!username || !password || !email || !patrolGuardName || !mobileNumber || !companyCode || !role) {
+        if (!username || !password || !email || !patrolGuardName || !mobileNumber || !companyCode || !role || !department || !designation) {
             return res.status(400).json({ message: "All fields are required" });
         }
 
@@ -225,6 +225,8 @@ router.put("/patrol/:patrolId", async (req, res) => {
         patrol.patrolGuardName = patrolGuardName;
         patrol.mobileNumber = mobileNumber;
         patrol.companyCode = companyCode;
+        patrol.department = department;
+        patrol.designation = designation ;
         patrol.imageUrl = imageUrl;
         patrol.role = role;
         patrol.modifiedDate = new Date(); // Update the modified date
@@ -246,10 +248,10 @@ router.put("/patrol/:patrolId", async (req, res) => {
 router.put("/admin/:adminId", async (req, res) => {
     try {
         const { adminId } = req.params;
-        const { username, password, email, patrolGuardName, mobileNumber, companyCode, imageUrl, role } = req.body;
+        const { username, password, email, patrolGuardName, mobileNumber, companyCode, imageUrl, role, department, designation } = req.body;
 
         // ✅ Validate required fields
-        if (!username || !password || !email || !patrolGuardName || !mobileNumber || !companyCode || !role) {
+        if (!username || !password || !email || !patrolGuardName || !mobileNumber || !companyCode || !role || !department || !designation) {
             return res.status(400).json({ message: "All fields are required" });
         }
 
@@ -287,6 +289,8 @@ router.put("/admin/:adminId", async (req, res) => {
         admin.mobileNumber = mobileNumber;
         admin.companyCode = companyCode;
         admin.imageUrl = imageUrl;
+        admin.department = department;
+        admin.designation = designation;
         admin.role = role;
         admin.modifiedDate = new Date();
 

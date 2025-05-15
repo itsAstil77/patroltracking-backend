@@ -89,43 +89,92 @@ router.post('/',authMiddleware, async (req, res) => {
     }
 });
 
-// routes/checklist.js (or appropriate file)
-router.put('/assign/:checklistId', authMiddleware, async (req, res) => {
-    try {
-        const { checklistId } = req.params;
-        const { assignedTo, assignedBy } = req.body;
 
-        // ✅ Find the checklist
-        const checklist = await Checklist.findOne({ checklistId });
-        if (!checklist) {
-            return res.status(404).json({ message: 'Checklist not found' });
+
+
+// // routes/checklist.js (or appropriate file)
+// router.put('/assign/:checklistId', authMiddleware, async (req, res) => {
+//     try {
+//         const { checklistId } = req.params;
+//         const { assignedTo, assignedBy } = req.body;
+
+//         // ✅ Find the checklist
+//         const checklist = await Checklist.findOne({ checklistId });
+//         if (!checklist) {
+//             return res.status(404).json({ message: 'Checklist not found' });
+//         }
+
+//         // ✅ Validate patrol (assignedTo)
+//         const patrol = await Signup.findOne({ patrolId: assignedTo, role: 'Patrol' });
+//         if (!patrol) {
+//             return res.status(400).json({ message: 'Invalid patrol ID (assignedTo)' });
+//         }
+
+//         // ✅ Validate admin (assignedBy)
+//         const admin = await Signup.findOne({ adminId: assignedBy, role: 'Admin' });
+//         if (!admin) {
+//             return res.status(400).json({ message: 'Invalid admin ID (assignedBy)' });
+//         }
+
+//         // ✅ Update checklist
+//         checklist.assignedTo = assignedTo;
+//         checklist.assignedBy = assignedBy;
+//         checklist.status = 'Open'; // or "Assigned"
+
+//         await checklist.save();
+
+//         res.status(200).json({ message: 'Checklist assigned to patrol successfully', checklist });
+//     } catch (error) {
+//         console.error('❌ Error assigning checklist:', error);
+//         res.status(500).json({ message: 'Error assigning checklist', error: error.message });
+//     }
+// });
+
+// routes/checklist.js
+router.put('/assign', async (req, res) => {
+    try {
+        const { checklistIds, assignedTo, assignedBy } = req.body;
+
+        if (!Array.isArray(checklistIds) || checklistIds.length === 0) {
+            return res.status(400).json({ message: 'checklistIds must be a non-empty array' });
         }
 
-        // ✅ Validate patrol (assignedTo)
+        // ✅ Validate patrol
         const patrol = await Signup.findOne({ patrolId: assignedTo, role: 'Patrol' });
         if (!patrol) {
             return res.status(400).json({ message: 'Invalid patrol ID (assignedTo)' });
         }
 
-        // ✅ Validate admin (assignedBy)
+        // ✅ Validate admin
         const admin = await Signup.findOne({ adminId: assignedBy, role: 'Admin' });
         if (!admin) {
             return res.status(400).json({ message: 'Invalid admin ID (assignedBy)' });
         }
 
-        // ✅ Update checklist
-        checklist.assignedTo = assignedTo;
-        checklist.assignedBy = assignedBy;
-        checklist.status = 'Open'; // or "Assigned"
+        // ✅ Find all checklists and update them
+        const checklists = await Checklist.find({ checklistId: { $in: checklistIds } });
 
-        await checklist.save();
+        if (checklists.length !== checklistIds.length) {
+            return res.status(404).json({ message: 'Some checklist IDs were not found' });
+        }
 
-        res.status(200).json({ message: 'Checklist assigned to patrol successfully', checklist });
+        // ✅ Update each checklist
+        const updatePromises = checklists.map((checklist) => {
+            checklist.assignedTo = assignedTo;
+            checklist.assignedBy = assignedBy;
+            checklist.status = 'Open'; // or "Assigned"
+            return checklist.save();
+        });
+
+        await Promise.all(updatePromises);
+
+        res.status(200).json({ message: 'Checklists assigned successfully', checklistIds });
     } catch (error) {
-        console.error('❌ Error assigning checklist:', error);
-        res.status(500).json({ message: 'Error assigning checklist', error: error.message });
+        console.error('❌ Error in bulk assigning checklists:', error);
+        res.status(500).json({ message: 'Error assigning checklists', error: error.message });
     }
 });
+
 
 
 // GET /checklists/workflow/:workflowId - Get all checklists for a specific workflow
@@ -393,7 +442,7 @@ router.put('/complete', authMiddleware, async (req, res) => {
         // ✅ Update status to "Completed" for given checklistIds
         const result = await Checklist.updateMany(
             { checklistId: { $in: checklistIds }, status: "Open" }, // Only update if status is Open
-            { $set: { status: "Completed", modifiedDate: new Date() } }
+            { $set: { status: "Completed",isActive:false, modifiedDate: new Date() } }
         );
 
         res.status(200).json({

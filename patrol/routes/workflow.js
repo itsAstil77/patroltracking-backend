@@ -154,10 +154,15 @@ router.put("/update/:workflowId", authMiddleware, async (req, res) => {
         const { workflowId } = req.params;
         const { workflowTitle, description, status, modifiedBy, assignedStart, assignedEnd } = req.body;
 
+
         // ✅ Validate workflow exists
         const workflow = await Workflow.findOne({ workflowId });
         if (!workflow) {
             return res.status(404).json({ success: false, message: "Workflow not found" });
+        }
+
+        if(workflow.status!="Pending"){
+            return res.status(400).json({success:false,message:"cannot update workflow which is not Pending"})
         }
 
         // // ✅ Validate modifiedBy (must be Admin)
