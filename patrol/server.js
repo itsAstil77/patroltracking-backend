@@ -44,10 +44,18 @@ const PORT = process.env.PORT || 5000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log("MongoDB Connected"))
-    .catch(err => console.log(err));
+  .then(() => {
+    console.log("MongoDB Connected");
+    // Start server only after DB connection is ready
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  })
+  .catch(err => {
+    console.error("MongoDB connection error:", err);
+  });
+
 
 // Import Routes
 const eventRoutes = require("./routes/workflow");
@@ -58,6 +66,9 @@ app.use("/history", eventWebRoutes);
 
 const checklistRoutes = require("./routes/checklist");
 app.use("/checklists", checklistRoutes);
+
+const sosRoutes = require("./routes/sos");
+app.use("/sos", sosRoutes);
 
 const mediaRoutes = require("./routes/media");
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -91,6 +102,10 @@ app.use("/scanning",scanningRoutes);
 const reportRoutes = require("./routes/report");
 app.use("/reports",reportRoutes);
 
+const roleRoutes = require("./routes/role");
+app.use("/roles", roleRoutes);
+
+
 const signatureRoutes = require("./routes/signature");
 app.use("/uploads/signatures", express.static(path.join(__dirname, "uploads", "signatures")));
 
@@ -100,7 +115,7 @@ app.use("/company",companyRoutes)
 // ⚡ Final step of express-oas-generator
 // expressOasGenerator.handleResponses(app, {});
 // Start Server
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 
 

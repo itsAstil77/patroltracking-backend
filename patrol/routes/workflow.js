@@ -25,18 +25,17 @@ const generateWorkflowId = async () => {
 router.post("/create", authMiddleware, async (req, res) => {
     try {
         const { workflowTitle, description, createdBy,assignedStart,assignedEnd, isActive } = req.body; // createdBy → adminId
-
-        // ✅ Validate createdBy format (ADM###)
-        if (!/^ADM\d{3}$/.test(createdBy)) {
-            return res.status(400).json({ success: false, message: "Invalid adminId format. Expected: ADM###" });
+           // Validate createdBy format (adjust regex to your userId format)
+        if (!/^USR\d{3}$/.test(createdBy)) {
+            return res.status(400).json({ success: false, message: "Invalid createdBy format. Expected: USR###" });
         }
-
-        // ✅ Check if adminId exists and belongs to an Admin
-        const adminExists = await Signup.findOne({ adminId: createdBy, role: "Admin" });
-
-        if (!adminExists) {
-            return res.status(400).json({ success: false, message: "Invalid adminId: Admin does not exist" });
-        }
+            
+            // Check if user exists AND role is Admin
+            const user = await Signup.findOne({ userId:createdBy, role: "Admin" });
+            
+            if (!user) {
+                return res.status(400).json({ success: false, message: "Invalid userId: User does not exist or is not an Admin" });
+            }
         // const locationExists = await Location.findOne({ locationCode });
         // if (!locationExists) {
         //     return res.status(400).json({ success: false, message: "Invalid locationCode: Location does not exist" });
@@ -231,7 +230,7 @@ router.delete("/delete/:workflowId", authMiddleware, async (req, res) => {
 // POST /workflow/start/:workflowId
 router.post("/start/:workflowId", authMiddleware, async (req, res) => {
     const { workflowId } = req.params;
-    const { startDateTime } = req.body;
+    const { startDateTime , startCoordinate} = req.body;
 
     try {
         const workflow = await Workflow.findOne({ workflowId });
@@ -257,6 +256,7 @@ router.post("/start/:workflowId", authMiddleware, async (req, res) => {
 
         // ✅ Update workflow status and timestamp
         workflow.status = "Inprogress";
+        workflow.startCoordinate = startCoordinate || null; 
         workflow.startDateTime = new Date(startDateTime); // store as UTC
         workflow.modifiedDate = new Date();
 
@@ -272,12 +272,13 @@ router.post("/start/:workflowId", authMiddleware, async (req, res) => {
 
 router.post('/done/:workflowId', authMiddleware, async (req, res) => {
     const { workflowId } = req.params;
+    const { endCoordinate } = req.body; 
 
     try {
         const checklists = await Checklist.find({ workflowId });
 
         if (checklists.length === 0) {
-            return res.status(404).json({ success: false, message: "No checklists found for this workflow" });
+            return res.status(404).json({ success: false, message: "No checklists found for this assignment" });
         }
 
         const allCompleted = checklists.every(c => c.status === 'Completed');
@@ -286,7 +287,7 @@ router.post('/done/:workflowId', authMiddleware, async (req, res) => {
             const workflow = await Workflow.findOne({ workflowId });
 
             if (!workflow) {
-                return res.status(404).json({ success: false, message: "Workflow not found" });
+                return res.status(404).json({ success: false, message: "assignment not found" });
             }
 
             const endDateTime = new Date();
@@ -302,6 +303,7 @@ router.post('/done/:workflowId', authMiddleware, async (req, res) => {
                 {
                     $set: {
                         status: "Completed",
+                        endCoordinate: endCoordinate || workflow.endCoordinate || null,
                         isActive: false,
                         endDateTime,
                         workflowStatus, // ✅ updated
@@ -313,17 +315,17 @@ router.post('/done/:workflowId', authMiddleware, async (req, res) => {
 
             return res.status(200).json({
                 success: true,
-                message: "Workflow marked as Completed",
+                message: "assignment marked as Completed",
                 workflow: updatedWorkflow
             });
         } else {
             return res.status(200).json({
                 success: false,
-                message: "Not all checklists are completed. Workflow status unchanged."
+                message: "Not all checklists are completed. assignment status unchanged."
             });
         }
     } catch (error) {
-        console.error("❌ Error completing workflow:", error);
+        console.error("❌ Error completing assignment:", error);
         return res.status(500).json({
             success: false,
             message: "Server error",
@@ -339,16 +341,16 @@ router.post('/done/:workflowId', authMiddleware, async (req, res) => {
 
 router.get('/workflow-patrol', async (req, res) => {
     try {
-        const { workflowId, patrolId } = req.query;
+        const { workflowId, userId } = req.query;
 
         // Check if both parameters are provided
-        if (!workflowId || !patrolId) {
-            return res.status(400).json({ message: "WorkflowId and patrolId are required" });
+        if (!workflowId || !userId) {
+            return res.status(400).json({ message: "WorkflowId and useridId are required" });
         }
              // Find checklists with matching workflowId, assignedTo (patrolId), and status 'open'
              const checklists = await Checklist.find({ 
                 workflowId, 
-                assignedTo: patrolId,
+                assignedTo: userId,
                 status: "Open"  // Filter for checklists with status "Open"
             });
 
@@ -394,9 +396,9 @@ router.get('/completed', authMiddleware, async (req, res) => {
 });
 
 
-router.get('/completed/:patrolId', authMiddleware, async (req, res) => {
+router.get('/completed/:userId', authMiddleware, async (req, res) => {
     try {
-        const { patrolId } = req.params;
+        const { userId } = req.params;
 
         // ✅ Fetch completed workflows only
         const completedWorkflows = await Workflow.find({ status: 'Completed' });
@@ -410,7 +412,7 @@ router.get('/completed/:patrolId', authMiddleware, async (req, res) => {
                 // ✅ Get checklists linked to this workflow AND assigned to the patrol
                 const checklists = await Checklist.find({
                     workflowId: workflow.workflowId, // <-- use workflowId for accurate match
-                    assignedTo: patrolId
+                    assignedTo: userId
                 });
 
                 return checklists.length > 0
@@ -439,6 +441,73 @@ router.get('/completed/:patrolId', authMiddleware, async (req, res) => {
     }
 });
 
+// ✅ Copy workflow and its checklists
+router.post('/copy/:workflowId', authMiddleware, async (req, res) => {
+    try {
+        const { workflowId } = req.params;
+        const { createdBy } = req.body; // adminId making the copy
+
+        // ✅ Validate admin
+        const admin = await Signup.findOne({ adminId: createdBy, role: "Admin" });
+        if (!admin) {
+            return res.status(400).json({ success: false, message: "Invalid adminId" });
+        }
+
+        // ✅ Get the original workflow
+        const originalWorkflow = await Workflow.findOne({ workflowId });
+        if (!originalWorkflow) {
+            return res.status(404).json({ success: false, message: "Original workflow not found" });
+        }
+
+        // ✅ Generate new workflowId
+        const newWorkflowId = await generateWorkflowId();
+
+        // ✅ Create copied workflow
+        const copiedWorkflow = new Workflow({
+            workflowId: newWorkflowId,
+            workflowTitle: `${originalWorkflow.workflowTitle} (Copy)`,
+            description: originalWorkflow.description,
+            createdBy: createdBy,
+            assignedStart: originalWorkflow.assignedStart,
+            assignedEnd: originalWorkflow.assignedEnd,
+            status: "Pending",
+            isActive: true,
+        });
+
+        await copiedWorkflow.save();
+
+        // ✅ Find all checklists under the original workflow
+        const checklists = await Checklist.find({ workflowId });
+
+        // ✅ Copy each checklist
+        const copiedChecklists = [];
+        for (const checklist of checklists) {
+            const newChecklistId = await generateChecklistId();
+            const newChecklist = new Checklist({
+                checklistId: newChecklistId,
+                workflowId: newWorkflowId,
+                title: checklist.title,
+                remarks: checklist.remarks,
+                createdBy: createdBy, // You can keep original if needed
+                startDateTime: checklist.startDateTime,
+                endDateTime: checklist.endDateTime,
+                isActive: checklist.isActive,
+            });
+            await newChecklist.save();
+            copiedChecklists.push(newChecklist);
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Workflow and checklists copied successfully",
+            workflow: copiedWorkflow,
+            checklists: copiedChecklists
+        });
+    } catch (error) {
+        console.error("❌ Error copying workflow:", error);
+        res.status(500).json({ success: false, message: "Error copying workflow", error: error.message });
+    }
+});
 
 
 

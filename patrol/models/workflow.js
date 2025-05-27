@@ -4,6 +4,8 @@ const eventSchema = new mongoose.Schema({
   workflowId: { type: String, required: true, unique: true }, // Custom event ID
   workflowTitle: { type: String, required: true },
   // locationCode: { type: String, required: true },
+  startCoordinate:{type:String},
+  endCoordinate:{type:String},
   description: { type: String },
   status: { type: String, enum: ["Pending", "Inprogress","Completed"] },
   assignedStart:{type:Date},

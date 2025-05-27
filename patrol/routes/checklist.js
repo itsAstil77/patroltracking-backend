@@ -20,7 +20,7 @@ async function generateChecklistId() {
 // ✅ Create a new checklist
 router.post('/',authMiddleware, async (req, res) => {
     try {
-        const { workflowId, locationCode, title, remarks, createdBy, startDateTime, endDateTime, isActive } = req.body;
+        const { workflowId, title, remarks, createdBy, startDateTime, endDateTime, isActive } = req.body;
 
         // ✅ Validate eventId
         const workflowExists = await Workflow.findOne({ workflowId });
@@ -28,11 +28,11 @@ router.post('/',authMiddleware, async (req, res) => {
             return res.status(400).json({ message: 'Invalid workflowId: workflow does not exist' });
         }
 
-        // ✅ Validate locationCode
-        const locationExists = await Location.findOne({ locationCode });
-        if (!locationExists) {
-            return res.status(400).json({ message: 'Invalid locationCode: Location does not exist' });
-        }
+        // // ✅ Validate locationCode
+        // const locationExists = await Location.findOne({ locationCode });
+        // if (!locationExists) {
+        //     return res.status(400).json({ message: 'Invalid locationCode: Location does not exist' });
+        // }
 
         // // ✅ Validate assignedBy (Check if it exists and is an admin)
         // const adminExists = await Signup.findOne({ adminId: assignedBy, role: "Admin" });
@@ -46,14 +46,19 @@ router.post('/',authMiddleware, async (req, res) => {
         //     return res.status(400).json({ message: 'Invalid assignedTo: Patrol does not exist' });
         // }
 
-        // ✅ Validate createdBy (Must be an Admin or a Patrol)
-        const createdByUser = await Signup.findOne({
-            $or: [{ adminId: createdBy, role: "Admin" }, { patrolId: createdBy, role: "Patrol" }]
-        });
+
+        // ✅ Validate createdBy format (USR###)
+        if (!/^USR\d{3}$/.test(createdBy)) {
+            return res.status(400).json({ message: 'Invalid createdBy format. Expected: USR###' });
+        }
+
+        // ✅ Validate createdBy exists (any user)
+        const createdByUser = await Signup.findOne({ userId: createdBy });
 
         if (!createdByUser) {
-            return res.status(400).json({ message: 'Invalid createdBy: User must be an Admin or a Patrol' });
+            return res.status(400).json({ message: 'Invalid createdBy: User does not exist' });
         }
+
 
         // ✅ Generate the next checklistId
         const checklistId = await generateChecklistId();
@@ -65,7 +70,6 @@ router.post('/',authMiddleware, async (req, res) => {
         const newChecklist = new Checklist({
             checklistId,
             workflowId,
-            locationCode,
             title,
             remarks,
             // status, // Auto-updated based on assignedTo
@@ -139,17 +143,28 @@ router.put('/assign', async (req, res) => {
             return res.status(400).json({ message: 'checklistIds must be a non-empty array' });
         }
 
-        // ✅ Validate patrol
-        const patrol = await Signup.findOne({ patrolId: assignedTo, role: 'Patrol' });
-        if (!patrol) {
-            return res.status(400).json({ message: 'Invalid patrol ID (assignedTo)' });
+        // ✅ Validate assignedTo user is not an Admin
+        const assignedUser = await Signup.findOne({ userId: assignedTo, role: { $ne: 'Admin' } });
+        if (!assignedUser) {
+            return res.status(400).json({ message: 'Invalid user ID (assignedTo) or user is an Admin' });
         }
 
+
         // ✅ Validate admin
-        const admin = await Signup.findOne({ adminId: assignedBy, role: 'Admin' });
+        const admin = await Signup.findOne({ userId: assignedBy, role: 'Admin' });
         if (!admin) {
             return res.status(400).json({ message: 'Invalid admin ID (assignedBy)' });
         }
+
+            // ✅ Get patrol's locationName
+            const locationName = assignedUser.locationName;
+
+                    // ✅ Find locationCode using locationName
+            const location = await Location.findOne({ description: locationName });
+            if (!location) {
+                return res.status(400).json({ message: 'Location not found for the patrol' });
+            }
+            const locationCode = location.locationCode;
 
         // ✅ Find all checklists and update them
         const checklists = await Checklist.find({ checklistId: { $in: checklistIds } });
@@ -157,12 +172,23 @@ router.put('/assign', async (req, res) => {
         if (checklists.length !== checklistIds.length) {
             return res.status(404).json({ message: 'Some checklist IDs were not found' });
         }
+             // ✅ Filter out any checklists that are not "Unassigned"
+             const invalidChecklists = checklists.filter(cl => cl.status !== 'Unassigned');
+             if (invalidChecklists.length > 0) {
+                 return res.status(400).json({
+                     message: 'Only checklists with status "Unassigned" can be assigned',
+                     invalidChecklistIds: invalidChecklists.map(cl => cl.checklistId)
+                 });
+             }
+
 
         // ✅ Update each checklist
         const updatePromises = checklists.map((checklist) => {
             checklist.assignedTo = assignedTo;
             checklist.assignedBy = assignedBy;
             checklist.status = 'Open'; // or "Assigned"
+            checklist.locationName = locationName; // 
+            checklist.locationCode = locationCode;
             return checklist.save();
         });
 
@@ -194,6 +220,41 @@ router.get("/:workflowId", authMiddleware, async (req, res) => {
       res.status(500).json({ success: false, message: "Error fetching checklists", error: error.message });
     }
   });
+
+
+// // GET /checklists/workflow/:workflowId?page=1&limit=10
+// router.get("/:workflowId", authMiddleware, async (req, res) => {
+//     try {
+//       const { workflowId } = req.params;
+//       const page = parseInt(req.query.page) || 1;        // default page = 1
+//       const limit = parseInt(req.query.limit) || 2;     // default limit = 10
+//       const skip = (page - 1) * limit;
+  
+//       const [checklists, totalCount] = await Promise.all([
+//         Checklist.find({ workflowId }).skip(skip).limit(limit),
+//         Checklist.countDocuments({ workflowId })
+//       ]);
+  
+//       if (checklists.length === 0) {
+//         return res.status(404).json({ message: "No checklists found for the given workflowId" });
+//       }
+  
+//       res.status(200).json({
+//         success: true,
+//         checklists,
+//         pagination: {
+//           total: totalCount,
+//           page,
+//           limit,
+//           totalPages: Math.ceil(totalCount / limit)
+//         }
+//       });
+//     } catch (error) {
+//       console.error("❌ Error fetching checklists:", error);
+//       res.status(500).json({ success: false, message: "Error fetching checklists", error: error.message });
+//     }
+//   });
+  
 
   // PATCH /checklists/end/:checklistId
 router.patch("/end/:checklistId", authMiddleware, async (req, res) => {
@@ -309,7 +370,7 @@ router.put("/update/:checklistId", authMiddleware, async (req, res) => {
         // }
 
         if (assignedBy && assignedBy !== checklist.assignedBy) {
-            const adminExists = await Signup.findOne({ adminId: assignedBy, role: "Admin" });
+            const adminExists = await Signup.findOne({ userId: assignedBy, role: "Admin" });
             if (!adminExists) {
                 return res.status(400).json({ success: false, message: "Invalid assignedBy" });
             }
@@ -317,12 +378,13 @@ router.put("/update/:checklistId", authMiddleware, async (req, res) => {
         }
 
         if (assignedTo && assignedTo !== checklist.assignedTo) {
-            const patrolExists = await Signup.findOne({ patrolId: assignedTo, role: "Patrol" });
-            if (!patrolExists) {
-                return res.status(400).json({ success: false, message: "Invalid assignedTo" });
+            const userExists = await Signup.findOne({ userId: assignedTo, role: { $ne: "Admin" } });
+            if (!userExists) {
+                return res.status(400).json({ success: false, message: "Invalid assignedTo: must be a non-admin user" });
             }
             checklist.assignedTo = assignedTo;
         }
+        
 
         // ✅ Update fields
         if (title) checklist.title = title;
@@ -337,7 +399,7 @@ router.put("/update/:checklistId", authMiddleware, async (req, res) => {
             return res.status(400).json({ success: false, message: "modifiedBy is required" });
         }
 
-        const admin = await Signup.findOne({ adminId: modifiedBy, role: "Admin" });
+        const admin = await Signup.findOne({ userId: modifiedBy, role: "Admin" });
         if (!admin) {
             return res.status(400).json({ success: false, message: "Invalid modifiedBy: admin not found" });
         }
@@ -363,13 +425,13 @@ router.put("/update/:checklistId", authMiddleware, async (req, res) => {
 
 
 // getting events and checklists for a patrol id 
-router.get('/grouped/\:patrolId', authMiddleware, async (req, res) => {
+router.get('/grouped/:userId', authMiddleware, async (req, res) => {
     try {
-    const { patrolId } = req.params;
+    const { userId } = req.params;
     
     
         // Fetch all checklists assigned to the given patrolId
-        const checklists = await Checklist.find({ assignedTo: patrolId });
+        const checklists = await Checklist.find({ assignedTo: userId });
     
         if (!checklists || checklists.length === 0) {
             return res.status(404).json({

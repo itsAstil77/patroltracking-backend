@@ -11,6 +11,7 @@ const scanningSchema = new mongoose.Schema({
     status: { type: String, required: true, enum: ["Success", "Failed", "Pending"] },
     createdBy:{type:String},
     createdDate: { type: Date, default: Date.now },
+    coordinates:{type:String},
     modifiedBy:{type:String},
     modifiedDate: { type: Date, default: Date.now },
     isActive: { type: Boolean, default: true }

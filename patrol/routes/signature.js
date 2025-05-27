@@ -42,11 +42,11 @@ async function generateSignatureId() {
 // POST /signature
 router.post("/",authMiddleware, upload.single("signatureImage"), async (req, res) => {
   try {
-    const { patrolId, checklistId } = req.body;
+    const { userId, checklistId } = req.body;
 
     if (!req.file) return res.status(400).json({ error: "Image is required." });
 
-    const userExists = await Signup.findOne({ patrolId });
+    const userExists = await Signup.findOne({ userId });
     // const checklistExists = await Checklist.findOne({ checklistId });
     let checklistExists = null;
     if (checklistId) {
@@ -56,7 +56,7 @@ router.post("/",authMiddleware, upload.single("signatureImage"), async (req, res
       }
     }
     
-    if (!userExists) return res.status(400).json({ error: "Invalid patrolId." });
+    if (!userExists) return res.status(400).json({ error: "Invalid user." });
     // if (!checklistExists) return res.status(400).json({ error: "Invalid checklistId." });
 
     const now = new Date();
@@ -66,7 +66,7 @@ router.post("/",authMiddleware, upload.single("signatureImage"), async (req, res
     const newSig = new Signature({
       signatureId,
       signatureUrl: `${req.protocol}://${req.get('host')}/uploads/signatures/${req.file.filename}`,
-      patrolId,
+      userId,
       checklistId : checklistId || null,
       createdDate: now,
       createdTime: time,

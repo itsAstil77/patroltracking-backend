@@ -3,6 +3,16 @@ const router = express.Router();
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const nodemailer = require("nodemailer");
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.ADMIN_EMAIL,       // Your admin Gmail (e.g. myapp@gmail.com)
+    pass: process.env.ADMIN_EMAIL_PASSWORD   // App-specific password, NOT your Gmail password
+  }
+});
+
+
 
 const Multimedia = require("../models/media");
 // const Scanning = require("../models/scanning");
@@ -74,18 +84,26 @@ router.post("/",(req, res) => {
       }
   
       try {
-        const { mediaType, description, patrolId, createdBy, modifiedBy,checklistId } = req.body;
+        const { mediaType, description, userId, createdBy, modifiedBy,checklistId,coordinates } = req.body;
+
+   
   
         if (!req.file) {
           return res.status(400).json({ error: "Media file is required." });
         }
   
-        const validPatrol = await Signup.findOne({ patrolId });
-        const validCreator = await Signup.findOne({ patrolId: createdBy });
-        // const validChecklist = await Checklist.findOne({ checklistId});
-  
-        if (!validPatrol) return res.status(400).json({ error: "Invalid patrolId." });
-        if (!validCreator) return res.status(400).json({ error: "Invalid createdBy." });
+        // ✅ Ensure userId exists and is not an Admin
+        const validUser = await Signup.findOne({ userId, role: { $ne: "Admin" }, isActive: true });
+        if (!validUser) {
+          return res.status(400).json({ error: "Invalid userId or user is an Admin." });
+        }
+
+        // ✅ Ensure createdBy exists and is not an Admin
+        const validCreatedBy = await Signup.findOne({ userId: createdBy, role: { $ne: "Admin" }, isActive: true });
+        if (!validCreatedBy) {
+          return res.status(400).json({ error: "Invalid createdBy or createdBy is an Admin." });
+        }
+
         // if (!validChecklist) return res.status(400).json({ error: "Invalid checklistId or checklist is inactive." });
   
         // const scanExists = await Scanning.findOne({ patrolId });
@@ -99,6 +117,13 @@ router.post("/",(req, res) => {
             return res.status(400).json({ error: "Invalid checklistId or checklist is inactive." });
           }
         }
+        else{
+                    // If checklistId is not provided, coordinates must be present
+          if (!coordinates || coordinates.trim() === "") {
+            return res.status(400).json({ error: "Coordinates are required when checklistId is not provided." });
+          }
+
+        }
   
         const multimediaId = await generateMultimediaId();
   
@@ -107,13 +132,45 @@ router.post("/",(req, res) => {
           mediaUrl: `${req.protocol}://${req.get("host")}/uploads/media/${req.file.filename}`,
           mediaType,
           description,
-          patrolId,
+          userId,
           checklistId : checklistId || null,
+          coordinates: checklistId ? undefined : coordinates,
           createdBy,
           modifiedBy
         });
   
         await newMedia.save();
+              // If media uploaded with checklistId, send email to admin(s)
+      if (checklistId) {
+        // Find all admins
+        const admins = await Signup.find({ role: "Admin", isActive: true });
+
+        const checklistInfo = await Checklist.findOne({ checklistId });
+
+        for (const admin of admins) {
+          const mailOptions = {
+            from: process.env.ADMIN_EMAIL,
+            to: admin.email,  // admin email
+            subject: `Media uploaded for Checklist ${checklistId}`,
+            html: `
+              <p>Patrol with ID: <b>${userId}</b> has uploaded media for checklist: <b>${checklistId}</b>.</p>
+              <p>Checklist Title: <b>${checklistInfo?.title || 'N/A'}</b></p>
+              <p>Media Type: <b>${mediaType}</b></p>
+              <p>Description: <i>${description || 'No description'}</i></p>
+              <p>Media URL: <a href="${newMedia.mediaUrl}">View Media</a></p>
+              <p>Uploaded on: ${new Date().toLocaleString()}</p>
+            `,
+          };
+
+          transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+              console.error("Error sending media upload email:", error);
+            } else {
+              console.log("Email sent to admin:", info.response);
+            }
+          });
+        }
+      }
         res.status(200).json({ message: "Multimedia uploaded successfully", data: newMedia });
   
       } catch (error) {

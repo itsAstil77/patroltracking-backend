@@ -17,12 +17,12 @@ async function generateScanningId() {
 }
 
 // POST /scanning
-router.post("/", authMiddleware, async (req, res) => {
+router.post("/",authMiddleware, async (req, res) => {
   try {
-    const { scanType, checklistId } = req.body;
+    const { scanType, checklistId, coordinates } = req.body;
 
     // Validate required fields
-    if (!scanType || !checklistId) {
+    if (!scanType || !checklistId || !coordinates) {
       return res.status(400).json({ error: "scanType and checklistId are required" });
     }
 
@@ -52,6 +52,7 @@ router.post("/", authMiddleware, async (req, res) => {
       scanId,
       scanType,
       checklistId,
+      coordinates,
       scanStartDate,
       status: "Success",
       createdBy: req.user?.username || "System", // optional: from authMiddleware
@@ -62,7 +63,9 @@ router.post("/", authMiddleware, async (req, res) => {
         // Update the checklist with the scanStartDate
         await Checklist.findOneAndUpdate(
           { checklistId },
-          { $set: { scanStartDate: scanStartDate } }, // Assuming you're adding this field in the Checklist collection
+          { $set: { scanStartDate: scanStartDate,
+            coordinates: coordinates 
+           } }, // Assuming you're adding this field in the Checklist collection
           { new: true }
         );
     

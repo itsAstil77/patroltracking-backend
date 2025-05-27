@@ -17,9 +17,9 @@ async function generateLocationId() {
 }
 
 // Create a new location (Protected Route)
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/',authMiddleware, async (req, res) => {
   try {
-    const { locationCode, latitude, longitude, description, isActive, createdBy } = req.body;
+    const {locationCode, latitude, longitude, description, createdBy } = req.body;
 
     // ✅ Validate createdBy format (ADM###)
     if (!/^ADM\d{3}$/.test(createdBy)) {
@@ -37,18 +37,19 @@ router.post('/', authMiddleware, async (req, res) => {
 
     // ✅ Create new location
     const newLocation = new Location({
+      // locationName,
       locationId,
       locationCode,
       latitude,
       longitude,
       description,
-      isActive,
+      // isActive,
       createdBy, // ✅ Store the valid adminId
     });
 
     const savedLocation = await newLocation.save();
 
-    res.status(201).json({
+    res.status(200).json({
       message: 'Location added successfully',
       location: savedLocation
     });
@@ -78,7 +79,7 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 
-router.get('/:locationCode', async (req, res) => {
+router.get('/:locationCode',authMiddleware, async (req, res) => {
   try {
     const { locationCode } = req.params;
 
@@ -101,8 +102,110 @@ router.get('/:locationCode', async (req, res) => {
 });
 
 
+// ✅ Update location by locationId
+router.put('/:locationId',authMiddleware, async (req, res) => {
+  try {
+    const { locationId } = req.params;
+    const {
+      // locationName,
+      locationCode,
+      latitude,
+      longitude,
+      description,
+      // isActive,
+      modifiedBy
+    } = req.body;
 
+    // ✅ Validate modifiedBy format (ADM###)
+    if (!/^ADM\d{3}$/.test(modifiedBy)) {
+      return res.status(400).json({ message: "Invalid adminId format for modifiedBy. Expected: ADM###" });
+    }
 
+    // ✅ Check if modifying admin exists
+    const adminExists = await Signup.findOne({ adminId: modifiedBy, role: "Admin" });
+    if (!adminExists) {
+      return res.status(400).json({ message: "Invalid adminId: Admin does not exist" });
+    }
+
+    // ✅ Find the location
+    const location = await Location.findOne({ locationId });
+    if (!location) {
+      return res.status(404).json({ message: "Location not found" });
+    }
+
+    // ✅ Optionally check if the new locationName or locationCode already exists for another location
+ // ✅ Optionally check if the new locationCode already exists for another location
+    const existing = await Location.findOne({
+      locationCode,
+      locationId: { $ne: locationId }
+    });
+
+    if (existing) {
+      return res.status(400).json({ message: "Location name or code already exists" });
+    }
+
+    // ✅ Update fields
+    // location.locationName = locationName?.trim() || location.locationName;
+    location.locationCode = locationCode?.trim().toUpperCase() || location.locationCode;
+    location.latitude = latitude ?? location.latitude;
+    location.longitude = longitude ?? location.longitude;
+    location.description = description ?? location.description;
+    // location.isActive = isActive ?? location.isActive;
+    location.modifiedBy = modifiedBy;
+    location.modifiedDate = new Date();
+
+    // ✅ Save
+    await location.save();
+
+    res.status(200).json({
+      message: "Location updated successfully",
+      location
+    });
+  } catch (error) {
+    console.error("❌ Error updating location:", error);
+    res.status(500).json({ message: "Error updating location", error: error.message });
+  }
+});
+
+// ✅ Delete location by locationId (Soft Delete or Hard Delete based on your requirement)
+router.delete('/:locationId',authMiddleware, async (req, res) => {
+  try {
+    const { locationId } = req.params;
+    const { deletedBy } = req.body;
+
+    // ✅ Validate admin format
+    if (!/^ADM\d{3}$/.test(deletedBy)) {
+      return res.status(400).json({ message: "Invalid adminId format for deletedBy. Expected: ADM###" });
+    }
+
+    // ✅ Check if admin exists
+    const adminExists = await Signup.findOne({ adminId: deletedBy, role: "Admin" });
+    if (!adminExists) {
+      return res.status(400).json({ message: "Invalid adminId: Admin does not exist" });
+    }
+
+    // ✅ Find location
+    const location = await Location.findOne({ locationId });
+    if (!location) {
+      return res.status(404).json({ message: "Location not found" });
+    }
+
+    // ❗ Option 1: Hard delete (permanently remove from DB)
+    await Location.deleteOne({ locationId });
+
+    // ❗ Option 2: Soft delete (mark as inactive)
+    // location.isActive = false;
+    // location.modifiedBy = deletedBy;
+    // location.modifiedDate = new Date();
+    // await location.save();
+
+    res.status(200).json({ message: "Location deleted successfully" });
+
+  } catch (error) {
+    console.error("❌ Error deleting location:", error);
+    res.status(500).json({ message: "Error deleting location", error: error.message });
+  }
+});
 
 
 module.exports = router;

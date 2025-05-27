@@ -80,7 +80,7 @@ router.post("/verify-otp", async (req, res) => {
         // ✅ Generate JWT Token (Valid for 2 Hours)
         const token = jwt.sign(
             { 
-                id: user.role === "Patrol" ? user.patrolId : user.adminId, 
+                id: user.userId, 
                 username: user.username, 
                 role: user.role 
             },
@@ -96,7 +96,7 @@ router.post("/verify-otp", async (req, res) => {
             message: "Login successful",
             token,
             user: {
-                id: user.role === "Patrol" ? user.patrolId : user.adminId,  // Only send relevant ID
+                userId: user.userId,
                 username: user.username,
                 patrolGuardName: user.patrolGuardName,
                 mobileNumber: user.mobileNumber,
