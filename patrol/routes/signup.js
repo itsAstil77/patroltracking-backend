@@ -39,6 +39,17 @@ router.post("/", async (req, res) => {
         if (!username || !password || !email || !patrolGuardName || !mobileNumber || !locationName || !roleId || !department || !designation) {
             return res.status(400).json({ message: "All fields are required" });
         }
+        // ✅ Validate email formats
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
+
+        if (!gmailRegex.test(username)) {
+          return res.status(400).json({ message: "Username must be a valid Gmail address (e.g., user@gmail.com)." });
+        }
+        if (!emailRegex.test(email)) {
+          return res.status(400).json({ message: "Email must be a valid email address." });
+        }
+
         const locationExists = await Location.findOne({ description:locationName });
         if (!locationExists) {
             return res.status(400).json({ message: "Invalid locationName. Please provide a valid location." });
@@ -51,6 +62,12 @@ router.post("/", async (req, res) => {
         }
 
         const roleName = roleDoc.roleName; // e.g., "Admin" or "Patrol"
+
+            // Check if username already exists
+          const existingUser = await Signup.findOne({ username });
+          if (existingUser) {
+            return res.status(400).json({ message: "Username already exists" });
+          }
 
                 // ✅ Generate userId (e.g., USR001, USR002...)
                 const userCount = await Signup.countDocuments({});
@@ -171,106 +188,104 @@ router.get("/:userId", async (req, res) => {
 // });
 
 
-// ✅ Delete a patrol by patrolId
+// Delete a patrol by userId, but prevent deleting if role is "Admin"
 router.delete("/:userId", async (req, res) => {
     try {
         const { userId } = req.params;
 
-        // ✅ Check if patrol exists
-        const patrol = await Signup.findOne({ userId: userId});
+        // Check if user exists
+        const user = await Signup.findOne({ userId });
 
-        if (!patrol) {
-            return res.status(404).json({ message: " not found" });
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
         }
 
-        // ✅ Delete the patrol
+        // Prevent deleting if role is Admin
+        if (user.role === "Admin") {
+            return res.status(403).json({ message: "Admin users cannot be deleted" });
+        }
+
+        // Delete the user
         await Signup.deleteOne({ userId });
 
         res.status(200).json({
-            message: " deleted successfully"
+            message: "User deleted successfully"
         });
     } catch (error) {
-        console.error("❌ Error deleting patrol:", error);
-        res.status(500).json({ message: "Error deleting patrol", error: error.message });
+        console.error("❌ Error deleting user:", error);
+        res.status(500).json({ message: "Error deleting user", error: error.message });
     }
 });
 
 
 
-// ✅ Update patrol details by patrolId
+
+
 router.put("/:userId", async (req, res) => {
-    try {
-        const { userId } = req.params;
-        const { username, password, email, patrolGuardName, mobileNumber,locationName, imageUrl, roleId, department, designation} = req.body;
+  try {
+    const { userId } = req.params;
+    const {
+      username,
+      email,
+      patrolGuardName,
+      mobileNumber,
+      locationName,
+      imageUrl,
+      department,
+      designation,
+    } = req.body;
 
-        // ✅ Validate required fields
-        if (!username || !password || !email || !patrolGuardName || !locationName || !mobileNumber  || !roleId || !department || !designation) {
-            return res.status(400).json({ message: "All fields are required" });
-        }
-
-        // // ✅ Check if companyCode exists in Master collection
-        // const company = await Master.findOne({ companyCode });
-        // if (!company) {
-        //     return res.status(400).json({ message: "Invalid company code. Please provide a valid company code." });
-        // }
-
-        // ✅ Check if patrol exists
-        const patrol = await Signup.findOne({ userId });
-
-        if (!patrol) {
-            return res.status(404).json({ message: "Patrol not found" });
-        }
-
-        // ✅ Check if username or email already exists (for other patrols)
-        const existingUser = await Signup.findOne({
-            $or: [{ username }, { email }],
-            _id: { $ne: patrol._id } // Exclude current patrol from the check
-        });
-        if (existingUser) {
-            return res.status(400).json({ message: "Username or Email already exists" });
-        }
-        // ✅ Check if locationName exists in Location collection
-        const location = await Location.findOne({ description:locationName });
-        if (!location) {
-            return res.status(400).json({ message: "Invalid location name. Please provide a valid location." });
-        }
-          // ✅ Validate roleId
-          const roleDoc = await Role.findOne({ roleId, isActive: true });
-          if (!roleDoc) {
-              return res.status(400).json({ message: "Invalid roleId. Please provide a valid role." });
-          }
-  
-          const roleName = roleDoc.roleName;
-
-
-        // ✅ Hash Password before updating
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        // ✅ Update patrol details
-        patrol.username = username;
-        patrol.password = hashedPassword;
-        patrol.email = email;
-        patrol.patrolGuardName = patrolGuardName;
-        patrol.mobileNumber = mobileNumber;
-        patrol.locationName = locationName;
-        // patrol.companyCode = companyCode;
-        patrol.department = department;
-        patrol.designation = designation ;
-        patrol.imageUrl = imageUrl;
-        patrol.roleId = roleId;
-        patrol.modifiedDate = new Date(); // Update the modified date
-
-        // ✅ Save the updated patrol
-        await patrol.save();
-
-        res.status(200).json({
-            message: "Patrol details updated successfully",
-            data: patrol
-        });
-    } catch (error) {
-        console.error("❌ Error updating patrol details:", error);
-        res.status(500).json({ message: "Error updating patrol details", error: error.message });
+    // ✅ Validate required fields
+    if (
+      !username ||
+      !email ||
+      !patrolGuardName ||
+      !locationName ||
+      !mobileNumber ||
+      !department ||
+      !designation
+    ) {
+      return res.status(400).json({ message: "All fields are required" });
     }
+
+    // ✅ Find the patrol by userId
+    const patrol = await Signup.findOne({ userId });
+    if (!patrol) {
+      return res.status(404).json({ message: "Patrol not found" });
+    }
+    
+
+    // ✅ Check if location exists
+    const location = await Location.findOne({ description: locationName });
+    if (!location) {
+      return res.status(400).json({ message: "Invalid location name" });
+    }
+
+    // ✅ Update fields
+    patrol.username = username;
+    patrol.email = email;
+    patrol.patrolGuardName = patrolGuardName;
+    patrol.mobileNumber = mobileNumber;
+    patrol.locationName = locationName;
+    patrol.department = department;
+    patrol.designation = designation;
+    patrol.imageUrl = imageUrl;
+    patrol.modifiedDate = new Date();
+
+    // ✅ Save
+    await patrol.save();
+
+    return res.status(200).json({
+      message: "Patrol details updated successfully",
+      data: patrol,
+    });
+  } catch (error) {
+    console.error("❌ Error updating patrol details:", error);
+    return res.status(500).json({
+      message: "Error updating patrol details",
+      error: error.message,
+    });
+  }
 });
 
 

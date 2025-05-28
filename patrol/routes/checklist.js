@@ -25,7 +25,7 @@ router.post('/',authMiddleware, async (req, res) => {
         // ✅ Validate eventId
         const workflowExists = await Workflow.findOne({ workflowId });
         if (!workflowExists) {
-            return res.status(400).json({ message: 'Invalid workflowId: workflow does not exist' });
+            return res.status(400).json({ message: 'Invalid assignmentId: assignment does not exist' });
         }
 
         // // ✅ Validate locationCode
@@ -84,12 +84,12 @@ router.post('/',authMiddleware, async (req, res) => {
         const savedChecklist = await newChecklist.save();
 
         res.status(200).json({
-            message: 'Checklist added successfully',
+            message: 'task added successfully',
             checklist: savedChecklist
         });
     } catch (error) {
-        console.error("❌ Error adding checklist:", error);
-        res.status(500).json({ message: 'Error adding checklist', error: error.message });
+        console.error("❌ Error adding task:", error);
+        res.status(500).json({ message: 'Error adding task', error: error.message });
     }
 });
 
@@ -140,7 +140,7 @@ router.put('/assign', async (req, res) => {
         const { checklistIds, assignedTo, assignedBy } = req.body;
 
         if (!Array.isArray(checklistIds) || checklistIds.length === 0) {
-            return res.status(400).json({ message: 'checklistIds must be a non-empty array' });
+            return res.status(400).json({ message: 'taskIds must be a non-empty array' });
         }
 
         // ✅ Validate assignedTo user is not an Admin
@@ -170,13 +170,13 @@ router.put('/assign', async (req, res) => {
         const checklists = await Checklist.find({ checklistId: { $in: checklistIds } });
 
         if (checklists.length !== checklistIds.length) {
-            return res.status(404).json({ message: 'Some checklist IDs were not found' });
+            return res.status(404).json({ message: 'Some task IDs were not found' });
         }
              // ✅ Filter out any checklists that are not "Unassigned"
              const invalidChecklists = checklists.filter(cl => cl.status !== 'Unassigned');
              if (invalidChecklists.length > 0) {
                  return res.status(400).json({
-                     message: 'Only checklists with status "Unassigned" can be assigned',
+                     message: 'Only tasks with status "Unassigned" can be assigned',
                      invalidChecklistIds: invalidChecklists.map(cl => cl.checklistId)
                  });
              }
@@ -194,10 +194,10 @@ router.put('/assign', async (req, res) => {
 
         await Promise.all(updatePromises);
 
-        res.status(200).json({ message: 'Checklists assigned successfully', checklistIds });
+        res.status(200).json({ message: 'tasks assigned successfully', checklistIds });
     } catch (error) {
-        console.error('❌ Error in bulk assigning checklists:', error);
-        res.status(500).json({ message: 'Error assigning checklists', error: error.message });
+        console.error('❌ Error in bulk assigning tasks:', error);
+        res.status(500).json({ message: 'Error assigning tasks', error: error.message });
     }
 });
 
@@ -211,13 +211,13 @@ router.get("/:workflowId", authMiddleware, async (req, res) => {
       const checklists = await Checklist.find({ workflowId });
   
       if (checklists.length === 0) {
-        return res.status(404).json({ message: "No checklists found for the given workflowId" });
+        return res.status(404).json({ message: "No tasks found for the given workflowId" });
       }
   
       res.status(200).json({ success: true, checklists });
     } catch (error) {
-      console.error("❌ Error fetching checklists:", error);
-      res.status(500).json({ success: false, message: "Error fetching checklists", error: error.message });
+      console.error("❌ Error fetching tasks:", error);
+      res.status(500).json({ success: false, message: "Error fetching tasks", error: error.message });
     }
   });
 
@@ -274,7 +274,7 @@ router.patch("/end/:checklistId", authMiddleware, async (req, res) => {
       );
   
       if (!updatedChecklist) {
-        return res.status(404).json({ message: "Checklist not found" });
+        return res.status(404).json({ message: "task not found" });
       }
   
       res.status(200).json({
@@ -308,17 +308,17 @@ router.get('/assigned', authMiddleware, async (req, res) => {
 
         // If no checklists are found, return a not found response
         if (checklists.length === 0) {
-            return res.status(404).json({ message: "No checklists found matching the provided criteria" });
+            return res.status(404).json({ message: "No tasks found matching the provided criteria" });
         }
 
         // Return the fetched checklists
         res.status(200).json({
-            message: 'Checklists retrieved successfully',
+            message: 'tasks retrieved successfully',
             checklists
         });
     } catch (error) {
-        console.error("❌ Error fetching checklists:", error);
-        res.status(500).json({ message: 'Error fetching checklists', error: error.message });
+        console.error("❌ Error fetching tasks:", error);
+        res.status(500).json({ message: 'Error fetching tasks', error: error.message });
     }
 });
 
@@ -340,14 +340,14 @@ router.put("/update/:checklistId", authMiddleware, async (req, res) => {
         // ✅ Find checklist
         const checklist = await Checklist.findOne({ checklistId });
         if (!checklist) {
-            return res.status(404).json({ success: false, message: "Checklist not found" });
+            return res.status(404).json({ success: false, message: "task not found" });
         }
 
         // ❌ Block update if status is not "Open"
         if (checklist.status !== "Open") {
             return res.status(403).json({
                 success: false,
-                message: `Checklist cannot be updated because its status is "${checklist.status}". Only 'Open' checklists can be edited.`
+                message: `task cannot be updated because its status is "${checklist.status}". Only 'Open' task can be edited.`
             });
         }
 
@@ -413,12 +413,12 @@ router.put("/update/:checklistId", authMiddleware, async (req, res) => {
 
         res.status(200).json({
             success: true,
-            message: "Checklist updated successfully",
+            message: "task updated successfully",
             checklist
         });
     } catch (error) {
-        console.error("❌ Error updating checklist:", error);
-        res.status(500).json({ success: false, message: "Error updating checklist", error: error.message });
+        console.error("❌ Error updating task:", error);
+        res.status(500).json({ success: false, message: "Error updating task", error: error.message });
     }
 });
 
@@ -435,7 +435,7 @@ router.get('/grouped/:userId', authMiddleware, async (req, res) => {
     
         if (!checklists || checklists.length === 0) {
             return res.status(404).json({
-                message: "No checklists found for this patrolId."
+                message: "No tasks found for this patrolId."
             });
         }
     
@@ -475,13 +475,13 @@ router.get('/grouped/:userId', authMiddleware, async (req, res) => {
         const groupedArray = Object.values(groupedByWorkflow);
     
         res.status(200).json({
-            message: "Grouped checklists by Workflow fetched successfully",
+            message: "Grouped tasks by Workflow fetched successfully",
             data: groupedArray
         });
     
     } catch (error) {
-        console.error("❌ Error grouping checklists:", error);
-        res.status(500).json({ message: "Error fetching grouped checklists", error: error.message });
+        console.error("❌ Error grouping tasks:", error);
+        res.status(500).json({ message: "Error fetching grouped tasks", error: error.message });
     }
     
     
@@ -498,7 +498,7 @@ router.put('/complete', authMiddleware, async (req, res) => {
         const { checklistIds } = req.body; // Array of checklistIds
         
         if (!checklistIds || checklistIds.length === 0) {
-            return res.status(400).json({ message: "Checklist IDs are required" });
+            return res.status(400).json({ message: "task IDs are required" });
         }
 
         // ✅ Update status to "Completed" for given checklistIds
@@ -508,12 +508,12 @@ router.put('/complete', authMiddleware, async (req, res) => {
         );
 
         res.status(200).json({
-            message: "Checklist(s) marked as Completed successfully",
+            message: "task(s) marked as Completed successfully",
             modifiedCount: result.nModified
         });
     } catch (error) {
-        console.error("❌ Error updating checklist status:", error);
-        res.status(500).json({ message: "Error updating checklist status", error: error.message });
+        console.error("❌ Error updating task status:", error);
+        res.status(500).json({ message: "Error updating task status", error: error.message });
     }
 });
 

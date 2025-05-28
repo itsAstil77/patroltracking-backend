@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Role = require("../models/role");
+const Signup = require("../models/signup");
 
 // Function to generate roleId like ROL001, ROL002...
 async function generateRoleId() {
@@ -62,59 +63,62 @@ router.get("/", async (req, res) => {
     }
   });
   
-  // PUT /roles/:roleId - Update role by roleId
-  router.put("/:roleId", async (req, res) => {
-    try {
-      const { roleId } = req.params;
-      const { roleName, description, isActive } = req.body;
-  
-      const role = await Role.findOne({ roleId });
-      if (!role) {
-        return res.status(404).json({ message: "Role not found" });
-      }
-  
-      if (roleName) {
-        // Check if roleName is taken by another role
-        const existing = await Role.findOne({ roleName, _id: { $ne: role._id } });
-        if (existing) {
-          return res.status(409).json({ message: "Role name already in use" });
-        }
-        role.roleName = roleName;
-      }
-      if (description !== undefined) role.description = description;
-      if (isActive !== undefined) role.isActive = isActive;
-  
-      role.modifiedDate = new Date();
-  
-      await role.save();
-  
-      return res.json({ message: "Role updated", role });
-    } catch (error) {
-      console.error("Error updating role:", error);
-      return res.status(500).json({ message: "Internal server error" });
+// PUT /roles/:roleId - Update role by roleId (roleName can be updated without validation)
+router.put("/:roleId", async (req, res) => {
+  try {
+    const { roleId } = req.params;
+    const { roleName, description, isActive } = req.body;
+
+    const role = await Role.findOne({ roleId });
+    if (!role) {
+      return res.status(404).json({ message: "Role not found" });
     }
-  });
+
+    // Allow roleName update without checking for duplicates
+    if (roleName !== undefined) role.roleName = roleName;
+    if (description !== undefined) role.description = description;
+    if (isActive !== undefined) role.isActive = isActive;
+
+    role.modifiedDate = new Date();
+
+    await role.save();
+
+    return res.json({ message: "Role updated successfully", role });
+  } catch (error) {
+    console.error("Error updating role:", error);
+    return res.status(500).json({ message: "Internal server error", error: error.message });
+  }
+});
+
   
-  // DELETE /roles/:roleId - Soft delete by setting isActive = false
-  router.delete("/:roleId", async (req, res) => {
-    try {
-      const { roleId } = req.params;
-  
-      const role = await Role.findOne({ roleId });
-      if (!role) {
-        return res.status(404).json({ message: "Role not found" });
-      }
-  
-      role.isActive = false;
-      role.modifiedDate = new Date();
-  
-      await role.save();
-  
-      return res.json({ message: "Role soft deleted (isActive=false)", role });
-    } catch (error) {
-      console.error("Error deleting role:", error);
-      return res.status(500).json({ message: "Internal server error" });
+// DELETE /roles/:roleId - Hard delete only if not assigned to any user
+router.delete("/:roleId", async (req, res) => {
+  try {
+    const { roleId } = req.params;
+
+    // 1. Find role by roleId
+    const role = await Role.findOne({ roleId });
+    if (!role) {
+      return res.status(404).json({ message: "Role not found" });
     }
-  });
+
+    // 2. Check if any user has this role assigned
+    const isAssigned = await Signup.exists({ role: role.roleName });
+    if (isAssigned) {
+      return res.status(400).json({
+        message: "Cannot delete role: It is assigned to one or more users"
+      });
+    }
+
+    // 3. Hard delete the role
+    await Role.deleteOne({ roleId });
+
+    return res.json({ message: "Role permanently deleted" });
+  } catch (error) {
+    console.error("❌ Error deleting role:", error);
+    return res.status(500).json({ message: "Internal server error", error: error.message });
+  }
+});
+
 
 module.exports = router;

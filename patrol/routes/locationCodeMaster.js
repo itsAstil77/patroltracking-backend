@@ -21,16 +21,17 @@ router.post('/',authMiddleware, async (req, res) => {
   try {
     const {locationCode, latitude, longitude, description, createdBy } = req.body;
 
-    // ✅ Validate createdBy format (ADM###)
-    if (!/^ADM\d{3}$/.test(createdBy)) {
-      return res.status(400).json({ message: "Invalid adminId format. Expected: ADM###" });
+    // ✅ Validate userId format (USR###)
+    if (!/^USR\d{3}$/.test(createdBy)) {
+      return res.status(400).json({ message: "Invalid userId format. Expected: USR###" });
     }
 
-    // ✅ Check if createdBy exists and belongs to an Admin
-    const adminExists = await Signup.findOne({ adminId: createdBy, role: "Admin" });
+    // ✅ Check if userId exists and belongs to an Admin
+    const adminExists = await Signup.findOne({ userId : createdBy, role: "Admin" });
     if (!adminExists) {
-      return res.status(400).json({ message: "Invalid adminId: Admin does not exist" });
+      return res.status(400).json({ message: "Invalid userId: Admin does not exist" });
     }
+
 
     // ✅ Generate the next locationId
     const locationId = await generateLocationId();
@@ -117,12 +118,13 @@ router.put('/:locationId',authMiddleware, async (req, res) => {
     } = req.body;
 
     // ✅ Validate modifiedBy format (ADM###)
-    if (!/^ADM\d{3}$/.test(modifiedBy)) {
-      return res.status(400).json({ message: "Invalid adminId format for modifiedBy. Expected: ADM###" });
+    // ✅ Validate userId format (USR###)
+    if (!/^USR\d{3}$/.test(modifiedBy)) {
+      return res.status(400).json({ message: "Invalid userId format. Expected: USR###" });
     }
 
     // ✅ Check if modifying admin exists
-    const adminExists = await Signup.findOne({ adminId: modifiedBy, role: "Admin" });
+    const adminExists = await Signup.findOne({ userId: modifiedBy, role: "Admin" });
     if (!adminExists) {
       return res.status(400).json({ message: "Invalid adminId: Admin does not exist" });
     }
@@ -174,15 +176,14 @@ router.delete('/:locationId',authMiddleware, async (req, res) => {
     const { deletedBy } = req.body;
 
     // ✅ Validate admin format
-    if (!/^ADM\d{3}$/.test(deletedBy)) {
-      return res.status(400).json({ message: "Invalid adminId format for deletedBy. Expected: ADM###" });
+    if (!/^USR\d{3}$/.test(deletedBy)) {
+      return res.status(400).json({ message: "Invalid userId format. Expected: USR###" });
     }
-
-    // ✅ Check if admin exists
-    const adminExists = await Signup.findOne({ adminId: deletedBy, role: "Admin" });
-    if (!adminExists) {
-      return res.status(400).json({ message: "Invalid adminId: Admin does not exist" });
-    }
+   // ✅ Check if modifying admin exists
+   const adminExists = await Signup.findOne({ userId: deletedBy, role: "Admin" });
+   if (!adminExists) {
+     return res.status(400).json({ message: "Invalid adminId: Admin does not exist" });
+   }
 
     // ✅ Find location
     const location = await Location.findOne({ locationId });

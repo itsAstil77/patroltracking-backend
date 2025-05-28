@@ -44,7 +44,7 @@ router.post("/create", authMiddleware, async (req, res) => {
         // ✅ Check for duplicate event title
         const existingWorkflow = await Workflow.findOne({ workflowTitle });
         if (existingWorkflow) {
-            return res.status(400).json({ success: false, message: "Workflow with the same title already exists" });
+            return res.status(400).json({ success: false, message: "assignment with the same title already exists" });
         }
         
 
@@ -65,10 +65,10 @@ router.post("/create", authMiddleware, async (req, res) => {
 
         await newworkflow.save();
 
-        res.status(200).json({ success: true, message: "Workflow created successfully", workflow: newworkflow });
+        res.status(200).json({ success: true, message: "assignment created successfully", workflow: newworkflow });
     } catch (error) {
         console.error("❌ Error creating event:", error);
-        res.status(500).json({ success: false, message: "Error creating Workflow", error: error.message });
+        res.status(500).json({ success: false, message: "Error creating assignment", error: error.message });
     }
 });
 
@@ -80,14 +80,14 @@ router.get("/:workflowId/checklists", authMiddleware, async (req, res) => {
         const workflow = await Workflow.findOne({ workflowId, isActive: true });
 
         if (!workflow) {
-            return res.status(404).json({ success: false, message: "Workflow not found or inactive" });
+            return res.status(404).json({ success: false, message: "assignment not found or inactive" });
         }
 
         // ✅ Fetch all active checklists associated with the workflow
         const checklists = await Checklist.find({ workflowId, isActive: true });
 
         if (!checklists || checklists.length === 0) {
-            return res.status(404).json({ success: false, message: "No checklists found for this workflow" });
+            return res.status(404).json({ success: false, message: "No tasks found for this assignment" });
         }
 
         // ✅ Return the workflow title along with its checklists
@@ -98,8 +98,8 @@ router.get("/:workflowId/checklists", authMiddleware, async (req, res) => {
         });
 
     } catch (error) {
-        console.error("❌ Error fetching checklists for workflow:", error);
-        res.status(500).json({ success: false, message: "Error fetching checklists", error: error.message });
+        console.error("❌ Error fetching tasks for assignment:", error);
+        res.status(500).json({ success: false, message: "Error fetching tasks", error: error.message });
     }
 });
 
@@ -139,7 +139,7 @@ router.get("/", authMiddleware, async (req, res) => {
       const workflows = await Workflow.find(); // latest first  .sort({ createdDate: -1 })
       res.status(200).json({ success: true, workflows });
     } catch (error) {
-      console.error("Error fetching workflows:", error);
+      console.error("Error fetching assignment:", error);
       res.status(500).json({ success: false, message: "Internal server error" });
     }
   });
@@ -157,11 +157,11 @@ router.put("/update/:workflowId", authMiddleware, async (req, res) => {
         // ✅ Validate workflow exists
         const workflow = await Workflow.findOne({ workflowId });
         if (!workflow) {
-            return res.status(404).json({ success: false, message: "Workflow not found" });
+            return res.status(404).json({ success: false, message: "assignment not found" });
         }
 
         if(workflow.status!="Pending"){
-            return res.status(400).json({success:false,message:"cannot update workflow which is not Pending"})
+            return res.status(400).json({success:false,message:"cannot update assignment which is not Pending"})
         }
 
         // // ✅ Validate modifiedBy (must be Admin)
@@ -174,7 +174,7 @@ router.put("/update/:workflowId", authMiddleware, async (req, res) => {
         if (workflowTitle && workflowTitle !== workflow.workflowTitle) {
             const duplicate = await Workflow.findOne({ workflowTitle });
             if (duplicate) {
-                return res.status(400).json({ success: false, message: "Another workflow with this title already exists" });
+                return res.status(400).json({ success: false, message: "Another assignment with this title already exists" });
             }
         }
 
@@ -189,10 +189,10 @@ router.put("/update/:workflowId", authMiddleware, async (req, res) => {
 
         await workflow.save();
 
-        res.status(200).json({ success: true, message: "Workflow updated successfully", workflow });
+        res.status(200).json({ success: true, message: "assignment updated successfully", workflow });
     } catch (error) {
-        console.error("❌ Error updating workflow:", error);
-        res.status(500).json({ success: false, message: "Error updating workflow", error: error.message });
+        console.error("❌ Error updating assignment:", error);
+        res.status(500).json({ success: false, message: "Error updating assignment", error: error.message });
     }
 });
 
@@ -213,16 +213,16 @@ router.delete("/delete/:workflowId", authMiddleware, async (req, res) => {
         // ✅ Check if workflow exists
         const workflow = await Workflow.findOne({ workflowId });
         if (!workflow) {
-            return res.status(404).json({ success: false, message: "Workflow not found" });
+            return res.status(404).json({ success: false, message: "assignment not found" });
         }
 
         // ✅ Delete the workflow
         await Workflow.deleteOne({ workflowId });
 
-        res.status(200).json({ success: true, message: "Workflow deleted successfully" });
+        res.status(200).json({ success: true, message: "assignment deleted successfully" });
     } catch (error) {
-        console.error("❌ Error deleting workflow:", error);
-        res.status(500).json({ success: false, message: "Error deleting workflow", error: error.message });
+        console.error("❌ Error deleting assignment:", error);
+        res.status(500).json({ success: false, message: "Error deleting assignment", error: error.message });
     }
 });
 
@@ -236,17 +236,17 @@ router.post("/start/:workflowId", authMiddleware, async (req, res) => {
         const workflow = await Workflow.findOne({ workflowId });
 
         if (!workflow) {
-            return res.status(404).json({ success: false, message: "Workflow not found" });
+            return res.status(404).json({ success: false, message: "assignment not found" });
         }
 
         if (workflow.status !== "Pending") {
-            return res.status(400).json({ success: false, message: "Workflow already started or completed" });
+            return res.status(400).json({ success: false, message: "assignment already started or completed" });
         }
 
         // ✅ Ensure checklist(s) exist
         const checklistCount = await Checklist.countDocuments({ workflowId });
         if (checklistCount === 0) {
-            return res.status(400).json({ success: false, message: "Cannot start workflow without checklists" });
+            return res.status(400).json({ success: false, message: "Cannot start assignment without checklists" });
         }
 
         // ✅ Validate startDateTime
@@ -262,9 +262,9 @@ router.post("/start/:workflowId", authMiddleware, async (req, res) => {
 
         await workflow.save();
 
-        res.status(200).json({ success: true, message: "Workflow started successfully", workflow });
+        res.status(200).json({ success: true, message: "assignment started successfully", workflow });
     } catch (error) {
-        console.error("❌ Error starting workflow:", error);
+        console.error("❌ Error starting assignment:", error);
         res.status(500).json({ success: false, message: "Server error", error: error.message });
     }
 });
@@ -278,7 +278,7 @@ router.post('/done/:workflowId', authMiddleware, async (req, res) => {
         const checklists = await Checklist.find({ workflowId });
 
         if (checklists.length === 0) {
-            return res.status(404).json({ success: false, message: "No checklists found for this assignment" });
+            return res.status(404).json({ success: false, message: "No tasks found for this assignment" });
         }
 
         const allCompleted = checklists.every(c => c.status === 'Completed');
@@ -321,7 +321,7 @@ router.post('/done/:workflowId', authMiddleware, async (req, res) => {
         } else {
             return res.status(200).json({
                 success: false,
-                message: "Not all checklists are completed. assignment status unchanged."
+                message: "Not all tasks are completed. assignment status unchanged."
             });
         }
     } catch (error) {
@@ -345,7 +345,7 @@ router.get('/workflow-patrol', async (req, res) => {
 
         // Check if both parameters are provided
         if (!workflowId || !userId) {
-            return res.status(400).json({ message: "WorkflowId and useridId are required" });
+            return res.status(400).json({ message: "assignmentId and useridId are required" });
         }
              // Find checklists with matching workflowId, assignedTo (patrolId), and status 'open'
              const checklists = await Checklist.find({ 
@@ -356,16 +356,16 @@ router.get('/workflow-patrol', async (req, res) => {
 
 
         if (checklists.length === 0) {
-            return res.status(404).json({ message: "No checklists found for the given Workflow and patrol" });
+            return res.status(404).json({ message: "No tasks found for the given assignment and patrol" });
         }
 
         res.status(200).json({
-            message: "Checklists fetched successfully",
+            message: "tasks fetched successfully",
             checklists
         });
 
     } catch (error) {
-        console.error("❌ Error fetching checklists by Workflow and patrol:", error);
+        console.error("❌ Error fetching tasks by assignment and patrol:", error);
         res.status(500).json({ message: "Internal server error", error: error.message });
     }
 });
@@ -377,19 +377,19 @@ router.get('/completed', authMiddleware, async (req, res) => {
 
         if (completedWorkflows.length === 0) {
             return res.status(404).json({
-                message: "No completed workflows found"
+                message: "No completed assignment found"
             });
         }
 
         // Send the response with the list of completed workflows
         res.status(200).json({
-            message: "Completed workflows fetched successfully",
+            message: "Completed assignment fetched successfully",
             data: completedWorkflows
         });
     } catch (error) {
-        console.error("❌ Error fetching completed workflows:", error);
+        console.error("❌ Error fetching completed assignment:", error);
         res.status(500).json({
-            message: "Error fetching completed workflows",
+            message: "Error fetching completed assignment",
             error: error.message
         });
     }
@@ -404,7 +404,7 @@ router.get('/completed/:userId', authMiddleware, async (req, res) => {
         const completedWorkflows = await Workflow.find({ status: 'Completed' });
 
         if (completedWorkflows.length === 0) {
-            return res.status(404).json({ message: "No completed workflows found" });
+            return res.status(404).json({ message: "No completed assignment found" });
         }
 
         const result = await Promise.all(
@@ -424,16 +424,16 @@ router.get('/completed/:userId', authMiddleware, async (req, res) => {
         const filteredResult = result.filter(item => item !== null);
 
         if (filteredResult.length === 0) {
-            return res.status(404).json({ message: "No completed workflows found for this patrol" });
+            return res.status(404).json({ message: "No completed assignment found for this patrol" });
         }
 
         res.status(200).json({
-            message: "Completed workflows with checklists fetched successfully",
+            message: "Completed assignment with tasks fetched successfully",
             data: filteredResult
         });
 
     } catch (error) {
-        console.error("❌ Error fetching workflows:", error);
+        console.error("❌ Error fetching assignment:", error);
         res.status(500).json({
             message: "Internal server error",
             error: error.message
@@ -456,7 +456,7 @@ router.post('/copy/:workflowId', authMiddleware, async (req, res) => {
         // ✅ Get the original workflow
         const originalWorkflow = await Workflow.findOne({ workflowId });
         if (!originalWorkflow) {
-            return res.status(404).json({ success: false, message: "Original workflow not found" });
+            return res.status(404).json({ success: false, message: "Original assignment not found" });
         }
 
         // ✅ Generate new workflowId
@@ -499,13 +499,13 @@ router.post('/copy/:workflowId', authMiddleware, async (req, res) => {
 
         res.status(200).json({
             success: true,
-            message: "Workflow and checklists copied successfully",
+            message: "assignment and tasks copied successfully",
             workflow: copiedWorkflow,
             checklists: copiedChecklists
         });
     } catch (error) {
-        console.error("❌ Error copying workflow:", error);
-        res.status(500).json({ success: false, message: "Error copying workflow", error: error.message });
+        console.error("❌ Error copying assignment:", error);
+        res.status(500).json({ success: false, message: "Error copying assignment", error: error.message });
     }
 });
 
