@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Role = require("../models/role");
 const Signup = require("../models/signup");
-
+const authMiddleware = require("../middleware/authMiddleware");
 // Function to generate roleId like ROL001, ROL002...
 async function generateRoleId() {
     const lastRole = await Role.findOne().sort({ roleId: -1 });
@@ -14,7 +14,7 @@ async function generateRoleId() {
 }
 
 // POST /roles — Create new role
-router.post("/", async (req, res) => {
+router.post("/",authMiddleware, async (req, res) => {
     try {
         const { roleName, description } = req.body;
 
@@ -48,7 +48,7 @@ router.post("/", async (req, res) => {
 
 
 // GET /roles - List all roles (optional ?active=true/false)
-router.get("/", async (req, res) => {
+router.get("/",authMiddleware, async (req, res) => {
     try {
       const { active } = req.query;
       let filter = {};
@@ -64,7 +64,7 @@ router.get("/", async (req, res) => {
   });
   
 // PUT /roles/:roleId - Update role by roleId (roleName can be updated without validation)
-router.put("/:roleId", async (req, res) => {
+router.put("/:roleId",authMiddleware, async (req, res) => {
   try {
     const { roleId } = req.params;
     const { roleName, description, isActive } = req.body;
@@ -92,7 +92,7 @@ router.put("/:roleId", async (req, res) => {
 
   
 // DELETE /roles/:roleId - Hard delete only if not assigned to any user
-router.delete("/:roleId", async (req, res) => {
+router.delete("/:roleId",authMiddleware, async (req, res) => {
   try {
     const { roleId } = req.params;
 

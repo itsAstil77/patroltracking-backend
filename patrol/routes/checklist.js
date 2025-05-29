@@ -95,47 +95,8 @@ router.post('/',authMiddleware, async (req, res) => {
 
 
 
-
-// // routes/checklist.js (or appropriate file)
-// router.put('/assign/:checklistId', authMiddleware, async (req, res) => {
-//     try {
-//         const { checklistId } = req.params;
-//         const { assignedTo, assignedBy } = req.body;
-
-//         // ✅ Find the checklist
-//         const checklist = await Checklist.findOne({ checklistId });
-//         if (!checklist) {
-//             return res.status(404).json({ message: 'Checklist not found' });
-//         }
-
-//         // ✅ Validate patrol (assignedTo)
-//         const patrol = await Signup.findOne({ patrolId: assignedTo, role: 'Patrol' });
-//         if (!patrol) {
-//             return res.status(400).json({ message: 'Invalid patrol ID (assignedTo)' });
-//         }
-
-//         // ✅ Validate admin (assignedBy)
-//         const admin = await Signup.findOne({ adminId: assignedBy, role: 'Admin' });
-//         if (!admin) {
-//             return res.status(400).json({ message: 'Invalid admin ID (assignedBy)' });
-//         }
-
-//         // ✅ Update checklist
-//         checklist.assignedTo = assignedTo;
-//         checklist.assignedBy = assignedBy;
-//         checklist.status = 'Open'; // or "Assigned"
-
-//         await checklist.save();
-
-//         res.status(200).json({ message: 'Checklist assigned to patrol successfully', checklist });
-//     } catch (error) {
-//         console.error('❌ Error assigning checklist:', error);
-//         res.status(500).json({ message: 'Error assigning checklist', error: error.message });
-//     }
-// });
-
 // routes/checklist.js
-router.put('/assign', async (req, res) => {
+router.put('/assign', authMiddleware,async (req, res) => {
     try {
         const { checklistIds, assignedTo, assignedBy } = req.body;
 
@@ -221,39 +182,6 @@ router.get("/:workflowId", authMiddleware, async (req, res) => {
     }
   });
 
-
-// // GET /checklists/workflow/:workflowId?page=1&limit=10
-// router.get("/:workflowId", authMiddleware, async (req, res) => {
-//     try {
-//       const { workflowId } = req.params;
-//       const page = parseInt(req.query.page) || 1;        // default page = 1
-//       const limit = parseInt(req.query.limit) || 2;     // default limit = 10
-//       const skip = (page - 1) * limit;
-  
-//       const [checklists, totalCount] = await Promise.all([
-//         Checklist.find({ workflowId }).skip(skip).limit(limit),
-//         Checklist.countDocuments({ workflowId })
-//       ]);
-  
-//       if (checklists.length === 0) {
-//         return res.status(404).json({ message: "No checklists found for the given workflowId" });
-//       }
-  
-//       res.status(200).json({
-//         success: true,
-//         checklists,
-//         pagination: {
-//           total: totalCount,
-//           page,
-//           limit,
-//           totalPages: Math.ceil(totalCount / limit)
-//         }
-//       });
-//     } catch (error) {
-//       console.error("❌ Error fetching checklists:", error);
-//       res.status(500).json({ success: false, message: "Error fetching checklists", error: error.message });
-//     }
-//   });
   
 
   // PATCH /checklists/end/:checklistId
@@ -488,9 +416,6 @@ router.get('/grouped/:userId', authMiddleware, async (req, res) => {
     });
    
     
-
-
-
 
 // ✅ Update checklist status from Open to Completed
 router.put('/complete', authMiddleware, async (req, res) => {

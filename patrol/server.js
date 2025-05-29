@@ -102,6 +102,10 @@ app.use("/scanning",scanningRoutes);
 const reportRoutes = require("./routes/report");
 app.use("/reports",reportRoutes);
 
+const licenseRoutes = require("./routes/license");
+app.use("/license", licenseRoutes);
+
+
 const roleRoutes = require("./routes/role");
 app.use("/roles", roleRoutes);
 

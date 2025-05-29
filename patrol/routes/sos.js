@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 const Sos = require('../models/sos'); // Adjust path if needed
 const Signup = require("../models/signup");
+const authMiddleware = require("../middleware/authMiddleware");
 
 // POST /sos - Store SOS alert
-router.post('/', async (req, res) => {
+router.post('/', authMiddleware,async (req, res) => {
   try {
     const { userId, remarks, coordinates } = req.body;
 
@@ -27,7 +28,8 @@ router.post('/', async (req, res) => {
     const newSos = new Sos({
       userId,
       remarks,
-      coordinates
+      coordinates,
+      createdDate
     });
 
     await newSos.save();

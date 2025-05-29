@@ -339,7 +339,7 @@ router.post('/done/:workflowId', authMiddleware, async (req, res) => {
 
 // for getting checklists based on events and patrol id
 
-router.get('/workflow-patrol', async (req, res) => {
+router.get('/workflow-patrol',authMiddleware, async (req, res) => {
     try {
         const { workflowId, userId } = req.query;
 

@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const Signup = require("../models/signup");
 const Master = require("../models/company");
 const Location = require('../models/locationCodeMaster');
+const authMiddleware = require('../middleware/authMiddleware');
 
 
 const router = express.Router();
@@ -102,7 +103,42 @@ router.post("/", async (req, res) => {
 });
 
 
-router.get("/users", async (req, res) => {
+router.post("/change-password",authMiddleware, async (req, res) => {
+  const { username, oldPassword, password, confirmPassword } = req.body;
+
+  if (!username || !oldPassword || !password || !confirmPassword) {
+      return res.status(400).json({ message: "All fields are required" });
+  }
+
+  try {
+      const user = await Signup.findOne({ username });
+      if (!user) {
+          return res.status(404).json({ message: "User not found" });
+      }
+
+      const isMatch = await bcrypt.compare(oldPassword, user.password);
+      if (!isMatch) {
+          return res.status(401).json({ message: "Old password is incorrect" });
+      }
+
+      if (password !== confirmPassword) {
+          return res.status(400).json({ message: "Passwords do not match" });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      user.password = hashedPassword;
+      user.modifiedDate = new Date();
+      await user.save();
+
+      res.status(200).json({ message: "Password changed successfully" });
+
+  } catch (error) {
+      res.status(500).json({ message: "Something went wrong", error: error.message });
+  }
+});
+
+
+router.get("/users",authMiddleware, async (req, res) => {
     try {
         // ✅ Fetch all patrols and admins from Signup collection
         const users = await Signup.find({}, "-password");// Exclude password from the result
@@ -121,7 +157,7 @@ router.get("/users", async (req, res) => {
     }
 });
 
-router.get("/non-admin", async (req, res) => {
+router.get("/non-admin",authMiddleware, async (req, res) => {
     try {
       // Find all users whose role is NOT "Admin"
       const users = await Signup.find({ role: { $ne: "Admin" } }, "-password -__v");
@@ -144,7 +180,7 @@ router.get("/non-admin", async (req, res) => {
 
 
 // GET /user/:userId
-router.get("/:userId", async (req, res) => {
+router.get("/:userId",authMiddleware, async (req, res) => {
     try {
       const { userId } = req.params;
   
@@ -162,34 +198,10 @@ router.get("/:userId", async (req, res) => {
     }
   });
 
-// router.get("/patrol", async (req, res) => {
-//     try {
-//         // First find the role document for 'Patrol' dynamically
-//         const roleDoc = await Role.findOne({ roleName: "Patrol", isActive: true });
-//         if (!roleDoc) {
-//             return res.status(404).json({ message: "Patrol role not found" });
-//         }
-
-//         // Use the roleName from the Role document to query Signup
-//         const users = await Signup.find({ role: roleDoc.roleName }).select("-password");
-
-//         if (users.length === 0) {
-//             return res.status(404).json({ message: "No patrol users found" });
-//         }
-
-//         res.status(200).json({
-//             message: "Patrol users retrieved successfully",
-//             users
-//         });
-//     } catch (error) {
-//         console.error("❌ Error fetching patrol users:", error);
-//         res.status(500).json({ message: "Error fetching users", error: error.message });
-//     }
-// });
 
 
 // Delete a patrol by userId, but prevent deleting if role is "Admin"
-router.delete("/:userId", async (req, res) => {
+router.delete("/:userId", authMiddleware,async (req, res) => {
     try {
         const { userId } = req.params;
 
@@ -221,7 +233,7 @@ router.delete("/:userId", async (req, res) => {
 
 
 
-router.put("/:userId", async (req, res) => {
+router.put("/:userId", authMiddleware,async (req, res) => {
   try {
     const { userId } = req.params;
     const {
