@@ -97,6 +97,8 @@ app.use("/locationcode",locationCodesRoutes)
 // app.use("/multimedia",mediaRoutes);
 const scanningRoutes = require("./routes/scanning");
 app.use("/scanning",scanningRoutes);
+const liveStreamRoutes = require("./routes/liveStream");
+app.use("/livestream",liveStreamRoutes);
 
 
 const reportRoutes = require("./routes/report");

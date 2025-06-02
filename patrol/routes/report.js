@@ -8,9 +8,6 @@ const authMiddleware = require('../middleware/authMiddleware');
 
 
 
-
-
-
 router.get('/all', authMiddleware,async (req, res) => {
   const { startDateTime, endDateTime, type } = req.query;
   const reportType = type || 'regular';
@@ -35,6 +32,13 @@ router.get('/all', authMiddleware,async (req, res) => {
           $lte: new Date(new Date(endDateTime).setHours(23, 59, 59, 999))
         };
       }
+
+          // Pagination params from query (default page=1, limit=10)
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 2;
+    const startIndex = (page - 1) * limit;
+    const endIndex = page * limit;
+
 
       // Step 2: Fetch filtered workflows
       const completedWorkflows = await Workflow.find(workflowFilter);
@@ -61,55 +65,70 @@ router.get('/all', authMiddleware,async (req, res) => {
         grouped[cl.assignedTo][cl.workflowId].push(cl);
       });
 
+          // Convert grouped object to array for pagination
+    const allPatrols = Object.entries(grouped); // [ [userId, workflows], ... ]
+
+    // Apply pagination on patrols
+    const paginatedPatrols = allPatrols.slice(startIndex, endIndex);
+
       // Step 4: Get all media and signatures for all patrols
       const [media, signatures] = await Promise.all([
         Multimedia.find({}),
         Signature.find({})
       ]);
 
-      // Step 5: Assemble final result grouped by patrolId
-      const result = Object.entries(grouped).map(([userId, workflows]) => {
-        // For each patrolId, map workflows
-        const workflowsArr = Object.entries(workflows).map(([workflowId, cls]) => {
-          // Find workflow object for workflowId
-          const wf = completedWorkflows.find(wf => wf.workflowId === workflowId);
-          return {
-            workflow: wf,
-            checklists: cls.map(cl => ({
-              ...cl.toObject(),
-              media: media.filter(m => m.checklistId === cl.checklistId && m.userId === userId),
-              signatures: signatures.filter(s => s.checklistId === cl.checklistId && s.userId === userId)
-            }))
-          };
-        });
-
+          // Step 6: Assemble final result for paginated patrols
+    const result = paginatedPatrols.map(([userId, workflows]) => {
+      const workflowsArr = Object.entries(workflows).map(([workflowId, cls]) => {
+        const wf = completedWorkflows.find(wf => wf.workflowId === workflowId);
         return {
-          userId,
-          workflows: workflowsArr
+          workflow: wf,
+          checklists: cls.map(cl => ({
+            ...cl.toObject(),
+            media: media.filter(m => m.checklistId === cl.checklistId && m.userId === userId),
+            signatures: signatures.filter(s => s.checklistId === cl.checklistId && s.userId === userId)
+          }))
         };
       });
 
-      return res.json({
-        success: true,
-        filteredBy: startDateTime || endDateTime
-          ? {
-              ...(startDateTime && { startDateTime }),
-              ...(endDateTime && { endDateTime: endDateTime || new Date().toISOString() })
-            }
-          : 'No date filter applied',
-        report: result
-      });
+      return {
+        userId,
+        workflows: workflowsArr
+      };
+    });
 
-    } catch (err) {
-      console.error('Error in all patrols report:', err);
-      return res.status(500).json({
-        success: false,
-        message: 'Server error',
-        error: err.message
-      });
-    }
-  } else if (reportType === 'media') {
+    return res.json({
+      success: true,
+      filteredBy: startDateTime || endDateTime
+        ? {
+            ...(startDateTime && { startDateTime }),
+            ...(endDateTime && { endDateTime: endDateTime || new Date().toISOString() })
+          }
+        : 'No date filter applied',
+      pagination: {
+        totalPatrols: allPatrols.length,
+        page,
+        limit,
+        totalPages: Math.ceil(allPatrols.length / limit)
+      },
+      report: result
+    });
+
+  } catch (err) {
+    console.error('Error in all patrols report:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: err.message
+    });
+  }
+} else if (reportType === 'media') {
     try {
+         // Pagination params (defaults)
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 2;
+    const startIndex = (page - 1) * limit;
+    const endIndex = page * limit;
       // date filters same as before
       const dateFilter = {};
 
@@ -160,27 +179,51 @@ router.get('/all', authMiddleware,async (req, res) => {
         return acc;
       }, {});
 
-      return res.json({
-        success: true,
-        filteredBy: startDateTime || endDateTime
-          ? {
-              ...(startDateTime && { startDateTime }),
-              ...(endDateTime && { endDateTime })
-            }
-          : 'No date filter applied',
-        mediaByUser,
-        signaturesByUser
-      });
+          // Convert to entries for pagination
+    const userIds = new Set([
+      ...Object.keys(mediaByUser),
+      ...Object.keys(signaturesByUser)
+    ]);
+    const allUsers = Array.from(userIds);
 
-    } catch (err) {
-      console.error('Error in all patrols media report:', err);
-      return res.status(500).json({
-        success: false,
-        message: 'Server error',
-        error: err.message
-      });
-    }
+    const paginatedUsers = allUsers.slice(startIndex, endIndex);
+
+    // Rebuild paginated result object
+    const paginatedMediaByUser = {};
+    const paginatedSignaturesByUser = {};
+
+    paginatedUsers.forEach(userId => {
+      if (mediaByUser[userId]) paginatedMediaByUser[userId] = mediaByUser[userId];
+      if (signaturesByUser[userId]) paginatedSignaturesByUser[userId] = signaturesByUser[userId];
+    });
+
+    return res.json({
+      success: true,
+      filteredBy: startDateTime || endDateTime
+        ? {
+            ...(startDateTime && { startDateTime }),
+            ...(endDateTime && { endDateTime })
+          }
+        : 'No date filter applied',
+      pagination: {
+        totalPatrols: allUsers.length,
+        page,
+        limit,
+        totalPages: Math.ceil(allUsers.length / limit)
+      },
+      mediaByUser: paginatedMediaByUser,
+      signaturesByUser: paginatedSignaturesByUser
+    });
+
+  } catch (err) {
+    console.error('Error in all patrols media report:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: err.message
+    });
   }
+}
 });
 
 
@@ -269,7 +312,7 @@ router.get('/:userId',authMiddleware, async (req, res) => {
       // });
 //       // ✅ Pagination logic
 const page = parseInt(req.query.page) || 1;
-const limit = parseInt(req.query.limit) || 10;
+const limit = parseInt(req.query.limit) || 2;
 const startIndex = (page - 1) * limit;
 const endIndex = page * limit;
 
@@ -343,19 +386,36 @@ return res.json({
           message: 'No media or signatures found for the given patrolId and date range.'
         });
       }
+
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const startIndex = (page - 1) * limit;
+      const endIndex = page * limit;
+
+      // Paginate results
+      const paginatedMedia = media.slice(startIndex, endIndex);
+      const paginatedSignatures = signatures.slice(startIndex, endIndex);
   
       return res.json({
-        success: true,
-        userId,
-        filteredBy: startDateTime || endDateTime
-          ? {
-              ...(startDateTime && { startDateTime }),
-              ...(endDateTime && { endDateTime })
-            }
-          : 'No date filter applied',
-        media,
-        signatures
-      });
+  success: true,
+  userId,
+  filteredBy: startDateTime || endDateTime
+    ? {
+        ...(startDateTime && { startDateTime }),
+        ...(endDateTime && { endDateTime })
+      }
+    : 'No date filter applied',
+  media: paginatedMedia,
+  signatures: paginatedSignatures,
+  pagination: {
+    totalMedia: media.length,
+    totalSignatures: signatures.length,
+    page,
+    limit,
+    totalPages: Math.ceil(Math.max(media.length, signatures.length) / limit)
+  }
+});
+
   
     } catch (err) {
       console.error('Error in generating patrol media report:', err);

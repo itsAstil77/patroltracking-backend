@@ -47,21 +47,38 @@ router.post("/",authMiddleware, async (req, res) => {
 });
 
 
-// GET /roles - List all roles (optional ?active=true/false)
-router.get("/",authMiddleware, async (req, res) => {
-    try {
-      const { active } = req.query;
-      let filter = {};
-      if (active === "true") filter.isActive = true;
-      else if (active === "false") filter.isActive = false;
-  
-      const roles = await Role.find(filter).sort({ roleId: 1 });
-      return res.json({ success: true, count: roles.length, roles });
-    } catch (error) {
-      console.error("Error fetching roles:", error);
-      return res.status(500).json({ message: "Internal server error" });
-    }
-  });
+// GET /roles - List all roles with pagination (?page=1&limit=10)
+router.get("/", authMiddleware, async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+
+    const pageNumber = parseInt(page);
+    const limitNumber = parseInt(limit);
+    const skip = (pageNumber - 1) * limitNumber;
+
+    // Get total count for pagination info
+    const totalCount = await Role.countDocuments();
+
+    // Get paginated roles
+    const roles = await Role.find()
+      .sort({ roleId: 1 })
+      .skip(skip)
+      .limit(limitNumber);
+
+    return res.json({
+      success: true,
+      totalCount,
+      currentPage: pageNumber,
+      totalPages: Math.ceil(totalCount / limitNumber),
+      count: roles.length,
+      roles,
+    });
+  } catch (error) {
+    console.error("Error fetching roles:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
   
 // PUT /roles/:roleId - Update role by roleId (roleName can be updated without validation)
 router.put("/:roleId",authMiddleware, async (req, res) => {

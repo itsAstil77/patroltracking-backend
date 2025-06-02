@@ -29,7 +29,7 @@ router.post('/', authMiddleware,async (req, res) => {
       userId,
       remarks,
       coordinates,
-      createdDate
+      createdDate:new Date() 
     });
 
     await newSos.save();

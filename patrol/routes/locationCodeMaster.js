@@ -60,17 +60,29 @@ router.post('/',authMiddleware, async (req, res) => {
   }
 });
 
-// ✅ Get all locations (full data)
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const locations = await Location.find(); // Fetch all documents
+    // Extract page and limit from query, set default values
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    // Calculate total documents
+    const totalLocations = await Location.countDocuments();
+
+    // Fetch paginated data
+    const locations = await Location.find()
+      .skip((page - 1) * limit)
+      .limit(limit);
 
     res.status(200).json({
       success: true,
+      currentPage: page,
+      totalPages: Math.ceil(totalLocations / limit),
+      totalLocations,
       locations
     });
   } catch (error) {
-    console.error("Error fetching locations:", error);
+    console.error("Error fetching paginated locations:", error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch locations',
@@ -78,6 +90,7 @@ router.get('/', authMiddleware, async (req, res) => {
     });
   }
 });
+
 
 
 router.get('/:locationCode',authMiddleware, async (req, res) => {

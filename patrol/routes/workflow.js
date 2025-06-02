@@ -133,16 +133,34 @@ router.get("/:workflowId/checklists", authMiddleware, async (req, res) => {
 //   });
   
 
-// GET all workflows
+// GET all workflows with pagination
 router.get("/", authMiddleware, async (req, res) => {
-    try {
-      const workflows = await Workflow.find(); // latest first  .sort({ createdDate: -1 })
-      res.status(200).json({ success: true, workflows });
-    } catch (error) {
-      console.error("Error fetching assignment:", error);
-      res.status(500).json({ success: false, message: "Internal server error" });
-    }
-  });
+  try {
+    const page = parseInt(req.query.page) || 1;     // Default to page 1
+    const limit = parseInt(req.query.limit) || 10;  // Default to 10 per page
+    const skip = (page - 1) * limit;
+
+    const totalCount = await Workflow.countDocuments();
+    const workflows = await Workflow.find()
+      .sort({ createdDate: -1 }) // Optional: sort by latest
+      .skip(skip)
+      .limit(limit);
+
+    res.status(200).json({
+      success: true,
+      pagination: {
+        totalRecords: totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+        pageSize: limit
+      },
+      workflows
+    });
+  } catch (error) {
+    console.error("Error fetching workflows:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+});
 
 
 

@@ -138,24 +138,41 @@ router.post("/change-password",authMiddleware, async (req, res) => {
 });
 
 
-router.get("/users",authMiddleware, async (req, res) => {
-    try {
-        // ✅ Fetch all patrols and admins from Signup collection
-        const users = await Signup.find({}, "-password");// Exclude password from the result
+router.get("/users", authMiddleware, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;      // Default to page 1
+    const limit = parseInt(req.query.limit) || 10;   // Default to 10 users per page
+    const skip = (page - 1) * limit;
 
-        if (users.length === 0) {
-            return res.status(404).json({ message: "No users found" });
-        }
+    // Get total count for pagination metadata
+    const totalUsers = await Signup.countDocuments();
 
-        res.status(200).json({
-            message: "Users retrieved successfully",
-            users
-        });
-    } catch (error) {
-        console.error("❌ Error fetching users:", error);
-        res.status(500).json({ message: "Error fetching users", error: error.message });
+    // Fetch users with pagination (excluding password)
+    const users = await Signup.find({}, "-password")
+      .sort({ createdDate: -1 }) // Optional: sort by created date, newest first
+      .skip(skip)
+      .limit(limit);
+
+    if (users.length === 0) {
+      return res.status(404).json({ message: "No users found" });
     }
+
+    res.status(200).json({
+      message: "Users retrieved successfully",
+      pagination: {
+        totalRecords: totalUsers,
+        totalPages: Math.ceil(totalUsers / limit),
+        currentPage: page,
+        pageSize: limit
+      },
+      users
+    });
+  } catch (error) {
+    console.error("❌ Error fetching users:", error);
+    res.status(500).json({ message: "Error fetching users", error: error.message });
+  }
 });
+
 
 router.get("/non-admin",authMiddleware, async (req, res) => {
     try {
