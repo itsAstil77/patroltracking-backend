@@ -17,29 +17,6 @@ app.use(cors({
 
 const path = require("path");
 const PORT = process.env.PORT || 5000;
-// const swaggerJsdoc = require("swagger-jsdoc");
-// const swaggerUi = require("swagger-ui-express");
-
-// const swaggerOptions = {
-//   definition: {
-//     openapi: "3.0.0",
-//     info: {
-//       title: "Patrol System API",
-//       version: "1.0.0",
-//       description: "Auto-generated docs for Patrol System APIs",
-//     },
-//     servers: [
-//       {
-//         url: `http://localhost:${PORT}`,
-//       },
-//     ],
-//   },
-//   apis: ["./routes/*.js", "./models/*.js"], // 👈 You can adjust this to your folder structure
-// };
-
-// const swaggerSpec = swaggerJsdoc(swaggerOptions);
-// app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -118,61 +95,3 @@ app.use("/uploads/signatures", express.static(path.join(__dirname, "uploads", "s
 app.use("/signature",signatureRoutes);
 const companyRoutes = require("./routes/company");
 app.use("/company",companyRoutes)
-// ⚡ Final step of express-oas-generator
-// expressOasGenerator.handleResponses(app, {});
-// Start Server
-// app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
-
-
-
-// const express = require("express");
-// const swaggerJsdoc = require("swagger-jsdoc");
-// const swaggerUi = require("swagger-ui-express");
-// require("dotenv").config();
-// const mongoose = require("mongoose");
-
-// const app = express();
-// app.use(express.json());
-
-// // ✅ Import your route files
-// const signupRoutes = require("./routes/signup");
-// const loginRoutes = require("./routes/login");
-// const companyRoutes = require("./routes/company");
-
-// // ✅ Swagger Configuration
-// const swaggerOptions = {
-//     definition: {
-//         openapi: "3.0.0",
-//         info: {
-//             title: "Patrol API Documentation",
-//             version: "1.0.0",
-//             description: "API Documentation for Patrol System",
-//         },
-//         servers: [
-//             {
-//                 url: "http://localhost:5000", // Change if using a different port
-//             },
-//         ],
-//     },
-//     apis: ["./routes/*.js"], // ✅ Automatically reads API documentation from route files
-// };
-
-// const swaggerSpec = swaggerJsdoc(swaggerOptions);
-// app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
-// // ✅ Use Routes
-// app.use("/signup", signupRoutes);
-// app.use("/login", loginRoutes);
-// app.use("/company", companyRoutes);
-
-// // ✅ Connect to MongoDB
-// mongoose.connect(process.env.MONGO_URI, {
-//     useNewUrlParser: true,
-//     useUnifiedTopology: true,
-// })
-// .then(() => console.log("Connected to MongoDB"))
-// .catch(err => console.error("MongoDB Connection Error:", err));
-
-// const PORT = process.env.PORT || 5000;
-// app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
