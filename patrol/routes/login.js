@@ -17,7 +17,9 @@ const transporter = nodemailer.createTransport({
 });
 
 // ✅ Generate a 4-digit OTP
-const generateOTP = () => Math.floor(1000 + Math.random() * 9000).toString();
+// const generateOTP = () => Math.floor(1000 + Math.random() * 9000).toString();
+const generateOTP = () => "9628"; // Or any 4-digit code you prefer
+
 
 // ✅ Step 1: Login API - Verify Credentials & Send OTP
 router.post("/", async (req, res) => {
