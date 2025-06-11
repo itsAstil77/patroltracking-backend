@@ -42,7 +42,7 @@ router.post("/", async (req, res) => {
         }
         // ✅ Validate email formats
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
+        const gmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
         if (!gmailRegex.test(username)) {
           return res.status(400).json({ message: "Username must be a valid Gmail address (e.g., user@gmail.com)." });
