@@ -299,7 +299,7 @@ router.post('/done/:workflowId', authMiddleware, async (req, res) => {
             return res.status(404).json({ success: false, message: "No tasks found for this assignment" });
         }
 
-        const allCompleted = checklists.every(c => c.status === 'Completed');
+        const allCompleted = checklists.every(c => c.status === 'Completed'|| c.status === 'Completed with MME');
 
         if (allCompleted) {
             const workflow = await Workflow.findOne({ workflowId });

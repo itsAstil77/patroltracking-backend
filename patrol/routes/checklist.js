@@ -5,6 +5,7 @@ const Workflow = require('../models/workflow');
 const Location = require('../models/locationCodeMaster');
 const Signup = require('../models/signup'); // Import Signup model
 const authMiddleware = require('../middleware/authMiddleware');
+const Multimedia = require("../models/media");
 
 // Function to generate the next checklistId
 async function generateChecklistId() {
@@ -417,28 +418,69 @@ router.get('/grouped/:userId', authMiddleware, async (req, res) => {
    
     
 
-// ✅ Update checklist status from Open to Completed
+// // ✅ Update checklist status from Open to Completed
+// router.put('/complete', authMiddleware, async (req, res) => {
+//     try {
+//         const { checklistIds } = req.body; // Array of checklistIds
+        
+//         if (!checklistIds || checklistIds.length === 0) {
+//             return res.status(400).json({ message: "task IDs are required" });
+//         }
+
+//         // ✅ Update status to "Completed" for given checklistIds
+//         const result = await Checklist.updateMany(
+//             { checklistId: { $in: checklistIds }, status: "Open" }, // Only update if status is Open
+//             { $set: { status: "Completed",isActive:false, modifiedDate: new Date() } }
+//         );
+
+//         res.status(200).json({
+//             message: "task(s) marked as Completed successfully",
+//             modifiedCount: result.nModified
+//         });
+//     } catch (error) {
+//         console.error("❌ Error updating task status:", error);
+//         res.status(500).json({ message: "Error updating task status", error: error.message });
+//     }
+// });
+
+
+
 router.put('/complete', authMiddleware, async (req, res) => {
     try {
-        const { checklistIds } = req.body; // Array of checklistIds
-        
-        if (!checklistIds || checklistIds.length === 0) {
+        const { checklistIds } = req.body;
+
+        if (!Array.isArray(checklistIds) || checklistIds.length === 0) {
             return res.status(400).json({ message: "task IDs are required" });
         }
 
-        // ✅ Update status to "Completed" for given checklistIds
-        const result = await Checklist.updateMany(
-            { checklistId: { $in: checklistIds }, status: "Open" }, // Only update if status is Open
-            { $set: { status: "Completed",isActive:false, modifiedDate: new Date() } }
-        );
+        let completed = 0;
+        let completedWithMME = 0;
 
-        res.status(200).json({
-            message: "task(s) marked as Completed successfully",
-            modifiedCount: result.nModified
+        for (const checklistId of checklistIds) {
+            const mediaCount = await Multimedia.countDocuments({ checklistId });
+
+            const status = mediaCount > 0 ? "Completed with MME" : "Completed";
+
+            const result = await Checklist.updateOne(
+                { checklistId, status: "Open" },
+                { $set: { status, isActive: false, modifiedDate: new Date() } }
+            );
+
+            if (result.modifiedCount > 0) {
+                if (status === "Completed with MME") completedWithMME++;
+                else completed++;
+            }
+        }
+
+        return res.status(200).json({
+            message: "Checklist(s) updated successfully",
+            completed,
+            completedWithMME
         });
+
     } catch (error) {
-        console.error("❌ Error updating task status:", error);
-        res.status(500).json({ message: "Error updating task status", error: error.message });
+        console.error("❌ Error updating checklist status:", error);
+        return res.status(500).json({ message: "Error updating checklist status", error: error.message });
     }
 });
 
