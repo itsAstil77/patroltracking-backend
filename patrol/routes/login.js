@@ -7,14 +7,41 @@ require("dotenv").config();
 
 const router = express.Router();
 
+// // ✅ Configure Nodemailer
+// const transporter = nodemailer.createTransport({
+//     service: "gmail",
+//     auth: {
+//         user: process.env.EMAIL_USER, 
+//         pass: process.env.EMAIL_PASS, 
+//     },
+// });
+
 // ✅ Configure Nodemailer
+// --- CHANGE STARTS HERE ---
 const transporter = nodemailer.createTransport({
-    service: "gmail",
+    // Replace "gmail" service with explicit host, port, and secure settings
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT), // Convert port to a number
+    secure: process.env.SMTP_SECURE === 'true', // Convert string "true"/"false" to boolean
     auth: {
-        user: process.env.EMAIL_USER, 
-        pass: process.env.EMAIL_PASS, 
+        user: process.env.EMAIL_USER, // Your SMTP authentication username from .env
+        pass: process.env.EMAIL_PASS, // Your SMTP authentication password from .env
     },
+    // Add debug and logger for troubleshooting SMTP conversation
+    // debug: true, // IMPORTANT: Set to true for debugging
+    // logger: true, // IMPORTANT: Set to true for debugging
 });
+
+// Add console logs here to verify the values passed to nodemailer
+// console.log("--- Nodemailer Config Check in login.js ---");
+// console.log(Configured Host: ${process.env.SMTP_HOST});
+// console.log(Configured Port: ${parseInt(process.env.SMTP_PORT)});
+// console.log(Configured Secure: ${process.env.SMTP_SECURE === 'true'});
+// console.log(Configured User: ${process.env.EMAIL_USER});
+// console.log(Configured Pass (first 3 chars): ${process.env.EMAIL_PASS ? process.env.EMAIL_PASS.substring(0, 3) + '...' : 'NOT LOADED'});
+// console.log("-----------------------------------------");
+
+// --- CHANGE ENDS HERE ---
 
 // ✅ Generate a 4-digit OTP
 // const generateOTP = () => Math.floor(1000 + Math.random() * 9000).toString();
