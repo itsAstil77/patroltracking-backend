@@ -4,17 +4,8 @@ const Scanning = require("../models/scanning");
 // const Event = require("../models/workflow"); // Make sure this exists
 const Checklist = require('../models/checklist');
 const authMiddleware = require("../middleware/authMiddleware");
+const generateScanningId = require("../utils/generateScanningId"); //
 
-// Generate the next scanId (SCN001, SCN002, etc.)
-async function generateScanningId() {
-  const lastScan = await Scanning.findOne().sort({ createdDate: -1 });
-  if (!lastScan) {
-    return "SCN001";
-  }
-  const lastId = lastScan.scanId;
-  const number = parseInt(lastId.replace("SCN", ""), 10) + 1;
-  return "SCN" + number.toString().padStart(3, "0");
-}
 
 // POST /scanning
 router.post("/",authMiddleware, async (req, res) => {
@@ -38,8 +29,7 @@ router.post("/",authMiddleware, async (req, res) => {
       return res.status(400).json({ error: "No active checklist found with the given checklistId" });
     }
 
-    // Generate scanId
-    const scanId = await generateScanningId();
+   const scanId = await generateScanningId();
 
     // // Get current date and time
     // const now = new Date();

@@ -14,8 +14,12 @@ router.get('/all', authMiddleware,async (req, res) => {
 
   if (reportType === 'regular') {
     try {
-      // Step 1: Build dynamic filter for workflows
-      const workflowFilter = { status: 'Completed' };
+      let workflowFilter = {};
+
+      if (req.query.status && req.query.status !== 'all') {
+        workflowFilter.status = req.query.status;
+      }
+
 
       if (startDateTime && endDateTime) {
         workflowFilter.startDateTime = {
@@ -238,8 +242,11 @@ router.get('/:userId',authMiddleware, async (req, res) => {
 
   if (reportType === 'regular') {
     try {
-      // Step 1: Build dynamic filter for workflows
-      const workflowFilter = { status: 'Completed' };
+     let workflowFilter = {};
+
+      if (req.query.status && req.query.status !== 'all') {
+        workflowFilter.status = req.query.status;
+      }
 
       if (startDateTime && endDateTime) {
         workflowFilter.startDateTime = {

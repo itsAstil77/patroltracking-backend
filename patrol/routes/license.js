@@ -7,7 +7,7 @@ const router = express.Router();
 router.post("/register", async (req, res) => {
   try {
     const { serialNumber, deviceId } = req.body;
-     const LICENSE_LIMIT = 4; // 
+     const LICENSE_LIMIT = 10; // 
 
     if (!serialNumber || !deviceId) {
       return res.status(400).json({ message: "serialNumber and deviceId are required" });

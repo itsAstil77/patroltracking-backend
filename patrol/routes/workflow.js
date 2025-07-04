@@ -4,22 +4,11 @@ const Signup = require("../models/signup");
 // const Location = require("../models/locationCodes"); //
 const Checklist = require('../models/checklist');
 const authMiddleware = require("../middleware/authMiddleware"); // Middleware to verify token
+const generateWorkflowId = require("../utils/generateWorkflowId");
+
 
 const router = express.Router();
 
-// ✅ Function to Generate Next Event ID
-const generateWorkflowId = async () => {
-    const latestWorkflow = await Workflow.findOne().sort({ createdDate: -1 }); // Sort by createdDate
-
-    let nextNumber = 1;
-    if (latestWorkflow && latestWorkflow.workflowId) {
-        const match = latestWorkflow.workflowId.match(/\d+/); // Extract numbers
-        if (match) {
-            nextNumber = parseInt(match[0], 10) + 1;
-        }
-    }
-    return `WF${String(nextNumber).padStart(3, "0")}`;
-};
 
 // ✅ Create Event (Requires Token & Valid Admin ID)
 router.post("/create", authMiddleware, async (req, res) => {

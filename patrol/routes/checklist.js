@@ -6,22 +6,12 @@ const Location = require('../models/locationCodeMaster');
 const Signup = require('../models/signup'); // Import Signup model
 const authMiddleware = require('../middleware/authMiddleware');
 const Multimedia = require("../models/media");
-
-// Function to generate the next checklistId
-async function generateChecklistId() {
-    const lastChecklist = await Checklist.findOne().sort({ createdDate: -1 });
-    if (!lastChecklist || !lastChecklist.checklistId) {
-        return 'CHK001';
-    }
-    const lastIdNum = parseInt(lastChecklist.checklistId.replace('CHK', ''), 10);
-    const nextIdNum = lastIdNum + 1;
-    return `CHK${nextIdNum.toString().padStart(3, '0')}`;
-}
-
+const generateChecklistId = require('../utils/generateChecklistId'); 
 // ✅ Create a new checklist
 router.post('/',authMiddleware, async (req, res) => {
     try {
-        const { workflowId, title, remarks, createdBy, startDateTime, endDateTime, isActive } = req.body;
+        const { workflowId, title, remarks, createdBy, startDateTime, endDateTime,  isActive, } = req.body;    
+        // latitude,longitude,locationName,locationCode,ETA,coordinates,
 
         // ✅ Validate eventId
         const workflowExists = await Workflow.findOne({ workflowId });
@@ -73,12 +63,15 @@ router.post('/',authMiddleware, async (req, res) => {
             workflowId,
             title,
             remarks,
-            // status, // Auto-updated based on assignedTo
-            // assignedTo,
-            // assignedBy,
             createdBy, // ✅ Store the valid Admin/Patrol ID
             startDateTime,
             endDateTime,
+            // coordinates,
+            // latitude,
+            // longitude,
+            // locationName,
+            // locationCode,
+            // ETA,
             isActive
         });
 
@@ -118,15 +111,15 @@ router.put('/assign', authMiddleware,async (req, res) => {
             return res.status(400).json({ message: 'Invalid admin ID (assignedBy)' });
         }
 
-            // ✅ Get patrol's locationName
-            const locationName = assignedUser.locationName;
+            // ✅ Get patrol's locationId
+            const patrolLocationId = assignedUser.locationId;
 
                     // ✅ Find locationCode using locationName
-            const location = await Location.findOne({ description: locationName });
-            if (!location) {
-                return res.status(400).json({ message: 'Location not found for the patrol' });
-            }
-            const locationCode = location.locationCode;
+            const location = await Location.findOne({ locationId:patrolLocationId});
+    if (!location) {
+      return res.status(400).json({ message: 'Location not found for the patrol' });
+    }
+    const locationCode = location.locationCode;
 
         // ✅ Find all checklists and update them
         const checklists = await Checklist.find({ checklistId: { $in: checklistIds } });
@@ -149,7 +142,7 @@ router.put('/assign', authMiddleware,async (req, res) => {
             checklist.assignedTo = assignedTo;
             checklist.assignedBy = assignedBy;
             checklist.status = 'Open'; // or "Assigned"
-            checklist.locationName = locationName; // 
+            checklist.locationId = patrolLocationId; // 
             checklist.locationCode = locationCode;
             return checklist.save();
         });
@@ -260,8 +253,9 @@ router.put("/update/:checklistId", authMiddleware, async (req, res) => {
             remarks,
             assignedTo,
             assignedBy,
-            // startDateTime,
-            // endDateTime,
+            // latitude,longitude,
+            // locationName,
+            // ETA,
             modifiedBy,
             isActive
         } = req.body;
@@ -318,9 +312,11 @@ router.put("/update/:checklistId", authMiddleware, async (req, res) => {
         // ✅ Update fields
         if (title) checklist.title = title;
         if (remarks) checklist.remarks = remarks;
-        // if (status) checklist.status = status;
-        // if (startDateTime) checklist.startDateTime = new Date(startDateTime);
-        // if (endDateTime) checklist.endDateTime = new Date(endDateTime);
+        // if(latitude) checklist.latitude = latitude
+        // if(longitude) checklist.longitude = longitude
+        // if(locationName) checklist.locationName = locationName
+        // if(ETA) checklist.ETA = ETA
+
         if (typeof isActive === 'boolean') checklist.isActive = isActive;
 
         // ✅ Validate modifiedBy is a valid admin in Signup

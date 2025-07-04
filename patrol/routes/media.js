@@ -4,6 +4,8 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const nodemailer = require("nodemailer");
+const generateMultimediaId = require("../utils/generateMultimediaId");
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -63,16 +65,7 @@ function fileFilter(req, file, cb) {
 
 const upload = multer({ storage, fileFilter,  limits: { fileSize: 5 * 1024 * 1024 } });
 
-// Utility: Generate multimediaId
-async function generateMultimediaId() {
-  const last = await Multimedia.findOne().sort({ createdDate: -1 }).limit(1);
-  if (!last || !last.multimediaId || !/^MMD\d+$/.test(last.multimediaId)) {
-    return "MMD001";
-  }
 
-  const lastNum = parseInt(last.multimediaId.replace("MMD", ""), 10);
-  return "MMD" + (lastNum + 1).toString().padStart(3, "0");
-}
 
 // POST /multimedia
 // Wrapper for multer error handling

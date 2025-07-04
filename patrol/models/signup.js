@@ -2,14 +2,16 @@ const mongoose = require("mongoose");
 
 const SignupSchema = new mongoose.Schema({
     username: { type: String, required: true, unique:false },
+      value: { type: Number, default: 0 },
     password: { type: String, required: true },
     patrolGuardName: { type: String, required: true },
-    userId: { type: String },
+    userId: { type: String,unique:true },
     mobileNumber: { type: String, required: true },
     email: { type: String, required: true, unique: false },
     department:{type:String},
     designation:{type:String},
-    locationName:{type:String},
+    locationId:{type:String},
+     locationName: {type: String},
     companyCode: { type: String, required: false }, // Links to Company Master
     imageUrl: { type: String },
     role: { type:String, required: false },

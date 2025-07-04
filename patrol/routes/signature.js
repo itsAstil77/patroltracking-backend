@@ -7,6 +7,8 @@ const Signature = require("../models/signature");
 const Signup = require("../models/signup");
 const Checklist = require("../models/checklist");
 const authMiddleware = require('../middleware/authMiddleware');
+const generateSignatureId = require("../utils/generateSignatureId");
+
 
 // Create uploads folder if not exists
 const signatureDir = path.join(__dirname, "..", "uploads", "signatures");
@@ -30,14 +32,6 @@ const fileFilter = (req, file, cb) => {
 };
 
 const upload = multer({ storage, fileFilter });
-
-// Utility: Generate signatureId
-async function generateSignatureId() {
-  const last = await Signature.findOne().sort({ createdDate: -1 }).limit(1);
-  if (!last || !/^SIG\d+$/.test(last.signatureId)) return "SIG001";
-  const num = parseInt(last.signatureId.replace("SIG", ""), 10);
-  return "SIG" + (num + 1).toString().padStart(3, "0");
-}
 
 // POST /signature
 router.post("/",authMiddleware, upload.single("signatureImage"), async (req, res) => {

@@ -12,7 +12,18 @@ const checklistSchema = new mongoose.Schema({
   assignedTo: { type: String },
   assignedBy: { type: String},
   coordinates:{type:String},
+geoCoordinates: {
+  type: {
+    latitude: { type: Number },
+    longitude: { type: Number }
+  },
+},
+
   // endCoordinate:{type:String},
+  // latitude: { type: Number},
+  // longitude: { type: Number },
+  // locationName:{type:String},
+  // ETA:{type:String},
   startDateTime: { type: Date },
   endDateTime: { type: Date },
   createdDate: { type: Date, default: Date.now },

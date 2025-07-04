@@ -3,7 +3,10 @@ const bcrypt = require("bcryptjs");
 const Signup = require("../models/signup");
 const Master = require("../models/company");
 const Location = require('../models/locationCodeMaster');
+const Checklist = require('../models/checklist');
 const authMiddleware = require('../middleware/authMiddleware');
+// Near the top
+const generateUserId = require("../utils/generateUserId");
 
 
 const router = express.Router();
@@ -11,21 +14,7 @@ const router = express.Router();
 
 const Role = require("../models/role"); // make sure this is imported
 
-async function generateUserId() {
-    const allPatrols = await Signup.find({ patrolId: { $exists: true } }, { patrolId: 1 });
 
-    let maxNum = 0;
-    allPatrols.forEach(doc => {
-        if (doc.patrolId) {
-            const num = parseInt(doc.patrolId.replace("USR00", ""));
-            if (!isNaN(num) && num > maxNum) {
-                maxNum = num;
-            }
-        }
-    });
-
-    return `USR00${maxNum + 1}`;
-}
 
 
 
@@ -33,11 +22,11 @@ router.post("/", async (req, res) => {
     try {
         const {
             username, password, email, patrolGuardName, mobileNumber,
-            locationName, companyCode, imageUrl, roleId, department, designation
+            locationId, imageUrl, roleId, department, designation
         } = req.body;
 
         // ✅ Validate required fields
-        if (!username || !password || !email || !patrolGuardName || !mobileNumber || !locationName || !roleId || !department || !designation) {
+        if (!username || !password || !email || !patrolGuardName || !mobileNumber || !locationId  || !roleId || !department || !designation) {
             return res.status(400).json({ message: "All fields are required" });
         }
         // ✅ Validate email formats
@@ -51,10 +40,11 @@ router.post("/", async (req, res) => {
           return res.status(400).json({ message: "Email must be a valid email address." });
         }
 
-        const locationExists = await Location.findOne({ description:locationName });
+        const locationExists = await Location.findOne({locationId});
         if (!locationExists) {
             return res.status(400).json({ message: "Invalid locationName. Please provide a valid location." });
         }
+            const locationName = locationExists.description;
 
         // ✅ Lookup roleName from roleId
         const roleDoc = await Role.findOne({ roleId, isActive: true });
@@ -69,10 +59,8 @@ router.post("/", async (req, res) => {
           if (existingUser) {
             return res.status(400).json({ message: "Username already exists" });
           }
-
-                // ✅ Generate userId (e.g., USR001, USR002...)
-                const userCount = await Signup.countDocuments({});
-                const userId = `USR${(userCount + 1).toString().padStart(3, "0")}`;
+          // In your route:
+const userId = await generateUserId();
 
         // ✅ Create user
         const newUser = new Signup({
@@ -81,8 +69,8 @@ router.post("/", async (req, res) => {
             email,
             patrolGuardName,
             mobileNumber,
-            locationName,
-            // companyCode,
+            locationId,
+             locationName,
             imageUrl,
             roleId,
             role: roleName,
@@ -148,10 +136,11 @@ router.get("/users", authMiddleware, async (req, res) => {
     const totalUsers = await Signup.countDocuments();
 
     // Fetch users with pagination (excluding password)
-    const users = await Signup.find({}, "-password")
-      .sort({ createdDate: -1 }) // Optional: sort by created date, newest first
-      .skip(skip)
-      .limit(limit);
+  const users = await Signup.find({}, "-password")
+  .sort({ createdDate: -1 })
+  .skip(skip)
+  .limit(limit)
+  
 
     if (users.length === 0) {
       return res.status(404).json({ message: "No users found" });
@@ -258,7 +247,7 @@ router.put("/:userId", authMiddleware,async (req, res) => {
       email,
       patrolGuardName,
       mobileNumber,
-      locationName,
+      locationId,
       imageUrl,
       department,
       designation,
@@ -269,7 +258,7 @@ router.put("/:userId", authMiddleware,async (req, res) => {
       !username ||
       !email ||
       !patrolGuardName ||
-      !locationName ||
+      !locationId ||
       !mobileNumber ||
       !department ||
       !designation
@@ -285,17 +274,27 @@ router.put("/:userId", authMiddleware,async (req, res) => {
     
 
     // ✅ Check if location exists
-    const location = await Location.findOne({ description: locationName });
+    const location = await Location.findOne({ locationId });
     if (!location) {
       return res.status(400).json({ message: "Invalid location name" });
     }
+
+    const locationCode = location.locationCode; 
+    const locationName = location.description; 
+
+    // ✏️ **Also update the user’s own locationCode & locationName**
+patrol.locationId   = locationId;
+patrol.locationCode = locationCode;
+patrol.locationName = locationName;
+    
 
     // ✅ Update fields
     patrol.username = username;
     patrol.email = email;
     patrol.patrolGuardName = patrolGuardName;
     patrol.mobileNumber = mobileNumber;
-    patrol.locationName = locationName;
+    patrol.locationId = locationId;
+    
     patrol.department = department;
     patrol.designation = designation;
     patrol.imageUrl = imageUrl;
@@ -303,6 +302,18 @@ router.put("/:userId", authMiddleware,async (req, res) => {
 
     // ✅ Save
     await patrol.save();
+        // ✅ Update all checklists assigned to this patrol
+    await Checklist.updateMany(
+      { assignedTo: userId },
+      {
+        $set: {
+          locationId: locationId,
+          locationCode: locationCode,
+            locationName: locationName, 
+          modifiedDate: new Date(), // optional
+        },
+      }
+    );
 
     return res.status(200).json({
       message: "Patrol details updated successfully",

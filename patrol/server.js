@@ -77,6 +77,9 @@ app.use("/scanning",scanningRoutes);
 const liveStreamRoutes = require("./routes/liveStream");
 app.use("/livestream",liveStreamRoutes);
 
+const mapRoutes = require("./routes/map");
+app.use("/maps",mapRoutes);
+
 
 const reportRoutes = require("./routes/report");
 app.use("/reports",reportRoutes);

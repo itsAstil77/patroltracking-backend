@@ -3,15 +3,8 @@ const router = express.Router();
 const Role = require("../models/role");
 const Signup = require("../models/signup");
 const authMiddleware = require("../middleware/authMiddleware");
-// Function to generate roleId like ROL001, ROL002...
-async function generateRoleId() {
-    const lastRole = await Role.findOne().sort({ roleId: -1 });
-    if (!lastRole) return "ROL001";
+const generateRoleId = require("../utils/generateRoleId"); // ✅ Add this
 
-    const lastNum = parseInt(lastRole.roleId.replace("ROL", "")) || 0;
-    const newNum = lastNum + 1;
-    return `ROL${String(newNum).padStart(3, '0')}`;
-}
 
 // POST /roles — Create new role
 router.post("/",authMiddleware, async (req, res) => {
@@ -28,7 +21,8 @@ router.post("/",authMiddleware, async (req, res) => {
             return res.status(409).json({ message: "Role already exists" });
         }
 
-        const roleId = await generateRoleId();
+       const roleId = await generateRoleId();
+;
 
         const newRole = new Role({
             roleId,
@@ -71,6 +65,20 @@ router.get("/", authMiddleware, async (req, res) => {
       currentPage: pageNumber,
       totalPages: Math.ceil(totalCount / limitNumber),
       count: roles.length,
+      roles,
+    });
+  } catch (error) {
+    console.error("Error fetching roles:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+// GET /roles - Get all roles without pagination
+router.get("/drop", authMiddleware, async (req, res) => {
+  try {
+    const roles = await Role.find().sort({ roleId: 1 });
+
+    return res.json({
+      success: true,
       roles,
     });
   } catch (error) {

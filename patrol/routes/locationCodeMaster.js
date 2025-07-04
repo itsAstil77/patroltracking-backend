@@ -2,19 +2,9 @@ const express = require('express');
 const router = express.Router();
 const Location = require('../models/locationCodeMaster');
 const Signup = require("../models/signup"); // ✅ Import Signup model
-
+const generateLocationId = require('../utils/generateLocationId'); 
 const authMiddleware = require('../middleware/authMiddleware'); // Import auth middleware
 
-// Function to generate the next locationId
-async function generateLocationId() {
-  const lastLocation = await Location.findOne().sort({ createdDate: -1 });
-  if (!lastLocation || !lastLocation.locationId) {
-    return 'LOC001';
-  }
-  const lastIdNum = parseInt(lastLocation.locationId.replace('LOC', ''), 10);
-  const nextIdNum = lastIdNum + 1;
-  return `LOC${nextIdNum.toString().padStart(3, '0')}`;
-}
 
 // Create a new location (Protected Route)
 router.post('/',authMiddleware, async (req, res) => {
@@ -90,6 +80,25 @@ router.get('/', authMiddleware, async (req, res) => {
     });
   }
 });
+
+router.get('/drop', authMiddleware, async (req, res) => {
+  try {
+    const locations = await Location.find().sort({ locationCode: 1 }); // optional sort
+
+    res.status(200).json({
+      success: true,
+      locations
+    });
+  } catch (error) {
+    console.error("Error fetching locations:", error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch locations',
+      error: error.message
+    });
+  }
+});
+
 
 
 
