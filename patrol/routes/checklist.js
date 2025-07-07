@@ -40,7 +40,7 @@ router.post('/',authMiddleware, async (req, res) => {
 
         // ✅ Validate createdBy format (USR###)
         if (!/^USR\d{3}$/.test(createdBy)) {
-            return res.status(400).json({ message: 'Invalid createdBy format. Expected: USR###' });
+            return res.status(400).json({ message: 'Invalid createdBy format' });
         }
 
         // ✅ Validate createdBy exists (any user)
@@ -95,20 +95,20 @@ router.put('/assign', authMiddleware,async (req, res) => {
         const { checklistIds, assignedTo, assignedBy } = req.body;
 
         if (!Array.isArray(checklistIds) || checklistIds.length === 0) {
-            return res.status(400).json({ message: 'taskIds must be a non-empty array' });
+            return res.status(400).json({ message: 'Select tasks to Assign to a User' });
         }
 
         // ✅ Validate assignedTo user is not an Admin
         const assignedUser = await Signup.findOne({ userId: assignedTo, role: { $ne: 'Admin' } });
         if (!assignedUser) {
-            return res.status(400).json({ message: 'Invalid user ID (assignedTo) or user is an Admin' });
+            return res.status(400).json({ message: 'Invalid user ID or user is an Admin' });
         }
 
 
         // ✅ Validate admin
         const admin = await Signup.findOne({ userId: assignedBy, role: 'Admin' });
         if (!admin) {
-            return res.status(400).json({ message: 'Invalid admin ID (assignedBy)' });
+            return res.status(400).json({ message: 'Invalid admin ID s' });
         }
 
             // ✅ Get patrol's locationId

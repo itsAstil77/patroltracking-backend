@@ -1,25 +1,18 @@
-const Counter = require("../models/counter");
 const Signature = require("../models/signature");
 
 async function generateSignatureId() {
-  // Step 1: Find highest SIG### in DB
+  // Step 1: Find the signature with the highest ID
   const lastSig = await Signature
     .findOne({ signatureId: { $regex: /^SIG\d{3}$/ } })
-    .sort({ signatureId: -1 });
+    .sort({ signatureId: -1 }); // Sort descending
 
+  // Step 2: Extract number
   const maxExisting = lastSig
     ? parseInt(lastSig.signatureId.replace("SIG", ""), 10)
     : 0;
 
-  // Step 2: Sync with counter
-  const counter = await Counter.findOneAndUpdate(
-    { name: "signatureId" },
-    { $max: { value: maxExisting + 1 } },
-    { new: true, upsert: true }
-  );
-
-  // Step 3: Return formatted ID
-  return `SIG${String(counter.value).padStart(3, "0")}`;
+  // Step 3: Return next padded ID
+  return `SIG${String(maxExisting + 1).padStart(3, "0")}`;
 }
 
 module.exports = generateSignatureId;

@@ -22,6 +22,12 @@ router.post('/',authMiddleware, async (req, res) => {
       return res.status(400).json({ message: "Invalid userId: Admin does not exist" });
     }
 
+    const loccode = await Location.findOne({locationCode})
+    if(loccode){
+      return res.status(400).json({message:"Locationcode already exists"})
+    }
+    
+
 
     // ✅ Generate the next locationId
     const locationId = await generateLocationId();
@@ -61,6 +67,7 @@ router.get('/', authMiddleware, async (req, res) => {
 
     // Fetch paginated data
     const locations = await Location.find()
+    .sort({createdDate:-1})
       .skip((page - 1) * limit)
       .limit(limit);
 
@@ -83,7 +90,7 @@ router.get('/', authMiddleware, async (req, res) => {
 
 router.get('/drop', authMiddleware, async (req, res) => {
   try {
-    const locations = await Location.find().sort({ locationCode: 1 }); // optional sort
+    const locations = await Location.find().sort({ createdDate: -1 }); // optional sort
 
     res.status(200).json({
       success: true,

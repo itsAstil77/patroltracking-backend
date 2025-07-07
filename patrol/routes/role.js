@@ -55,7 +55,7 @@ router.get("/", authMiddleware, async (req, res) => {
 
     // Get paginated roles
     const roles = await Role.find()
-      .sort({ roleId: 1 })
+      .sort({ createdDate: -1 })
       .skip(skip)
       .limit(limitNumber);
 
@@ -75,7 +75,7 @@ router.get("/", authMiddleware, async (req, res) => {
 // GET /roles - Get all roles without pagination
 router.get("/drop", authMiddleware, async (req, res) => {
   try {
-    const roles = await Role.find().sort({ roleId: 1 });
+    const roles = await Role.find().sort({ createdDate: -1 });
 
     return res.json({
       success: true,

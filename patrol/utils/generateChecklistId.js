@@ -1,26 +1,19 @@
-// utils/generateChecklistId.js
 const Checklist = require("../models/checklist");
-const Counter = require("../models/counter");
 
 async function generateChecklistId() {
-  // Step 1: Get the highest existing CHK### in the DB
+  // Step 1: Find the highest existing CHK### in DB
   const last = await Checklist
     .findOne({ checklistId: { $regex: /^CHK\d{3}$/ } })
-    .sort({ checklistId: -1 });
+    .sort({ checklistId: -1 }); // Descending sort to get highest
 
+  // Step 2: Extract number and compute next
   const maxExisting = last
     ? parseInt(last.checklistId.replace("CHK", ""), 10)
     : 0;
 
-  // Step 2: Sync or increment counter
-  const counter = await Counter.findOneAndUpdate(
-    { name: "checklistId" },
-    { $max: { value: maxExisting + 1 } }, // Ensures counter never goes backward
-    { new: true, upsert: true }
-  );
-
-  // Step 3: Return the generated ID
-  return `CHK${String(counter.value).padStart(3, "0")}`;
+  // Step 3: Return formatted next ID
+  const nextId = maxExisting + 1;
+  return `CHK${String(nextId).padStart(3, "0")}`;
 }
 
 module.exports = generateChecklistId;
