@@ -7,12 +7,28 @@ const nodemailer = require("nodemailer");
 const generateMultimediaId = require("../utils/generateMultimediaId");
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.ADMIN_EMAIL,       // Your admin Gmail (e.g. myapp@gmail.com)
-    pass: process.env.ADMIN_EMAIL_PASSWORD   // App-specific password, NOT your Gmail password
-  }
+    // Replace "gmail" service with explicit host, port, and secure settings
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT), // Convert port to a number
+    secure: process.env.SMTP_SECURE === 'true', // Convert string "true"/"false" to boolean
+    auth: {
+        user: process.env.ADMIN_EMAIL, // Your SMTP authentication username from .env
+        pass: process.env.ADMIN_EMAIL_PASSWORD,
+         // Your SMTP authentication password from .env
+    },
+    //  logger: true,
+  // debug: true
+    // Add debug and logger for troubleshooting SMTP conversation
+    // debug: true, // IMPORTANT: Set to true for debugging
+    // logger: true, // IMPORTANT: Set to true for debugging
 });
+// const transporter = nodemailer.createTransport({
+//   service: "gmail", // ✅ Use built-in Gmail config
+//   auth: {
+//     user: process.env.ADMIN_EMAIL,         // e.g., your Gmail address
+//     pass: process.env.ADMIN_EMAIL_PASSWORD // Gmail app password
+//   }
+// });
 
 
 
@@ -37,40 +53,39 @@ const storage = multer.diskStorage({
   }
 });
 
-// File type validation based on mediaType
 function fileFilter(req, file, cb) {
-  const mediaType = req.body.mediaType;
+  const allowedMimeTypes = [
+    "image/jpeg", "image/png", "image/jpg",
+    "video/mp4", "video/mpeg", "video/avi", "video/webm",
+    "audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/webm"
+  ];
 
-  const imageMimeTypes = ["image/jpeg", "image/png", "image/jpg"];
-  const videoMimeTypes = ["video/mp4", "video/mpeg", "video/avi", "video/webm"];
-  const audioMimeTypes = ["audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/webm"];  
-  
-
-  let isValid = false;
-
-  if (mediaType === "image") {
-    isValid = imageMimeTypes.includes(file.mimetype);
-  } else if (mediaType === "video") {
-    isValid = videoMimeTypes.includes(file.mimetype);
-  } else if (mediaType === "audio") {
-    isValid = audioMimeTypes.includes(file.mimetype);
-  }
-
-  if (!isValid) {
-    return cb(new Error("Invalid media type or file format."), false);
+  if (!allowedMimeTypes.includes(file.mimetype)) {
+    return cb(new Error(`Invalid file type: ${file.originalname}`), false);
   }
 
   cb(null, true);
 }
 
-const upload = multer({ storage, fileFilter,  limits: { fileSize: 5 * 1024 * 1024 } });
+
+const MAX_FILES = 5; // or 10 if you want more
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // per file size limit: 5MB
+    files: MAX_FILES           // max number of files
+  }
+});
+
 
 
 
 // POST /multimedia
 // Wrapper for multer error handling
 router.post("/",(req, res) => {
-    upload.single("mediaFile")(req, res, async (err) => {
+    upload.array("mediaFile", MAX_FILES)(req, res, async (err) => {
+
       if (err instanceof multer.MulterError || err) {
         // Handle Multer-specific or file validation errors
         return res.status(400).json({ error: err.message });
@@ -81,9 +96,9 @@ router.post("/",(req, res) => {
 
    
   
-        if (!req.file) {
-          return res.status(400).json({ error: "Media file is required." });
-        }
+             if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ error: "At least one media file is required." });
+      }
   
         // ✅ Ensure userId exists and is not an Admin
         const validUser = await Signup.findOne({ userId, role: { $ne: "Admin" }, isActive: true });
@@ -117,22 +132,32 @@ router.post("/",(req, res) => {
           }
 
         }
-  
+
+      const savedMedia = [];
+
+      for (const file of req.files) {
         const multimediaId = await generateMultimediaId();
-  
-        const newMedia = new Multimedia({
-          multimediaId,
-          mediaUrl: `${req.protocol}://${req.get("host")}/uploads/media/${req.file.filename}`,
-          mediaType,
-          description,
-          userId,
-          checklistId : checklistId || null,
-          coordinates: checklistId ? undefined : coordinates,
-          createdBy,
-          modifiedBy
-        });
-  
+let detectedMediaType = "";
+if (file.mimetype.startsWith("image/")) detectedMediaType = "image";
+else if (file.mimetype.startsWith("video/")) detectedMediaType = "video";
+else if (file.mimetype.startsWith("audio/")) detectedMediaType = "audio";
+
+const newMedia = new Multimedia({
+  multimediaId,
+  mediaUrl: `${req.protocol}://${req.get("host")}/uploads/media/${file.filename}`,
+  mediaType: detectedMediaType,
+  description,
+  userId,
+  checklistId: checklistId || null,
+  coordinates: checklistId ? undefined : coordinates,
+  createdBy,
+  modifiedBy,
+});
+
+
         await newMedia.save();
+        savedMedia.push(newMedia);
+      }
               // If media uploaded with checklistId, send email to admin(s)
       if (checklistId) {
         // Find all admins
@@ -150,7 +175,11 @@ router.post("/",(req, res) => {
               <p>Checklist Title: <b>${checklistInfo?.title || 'N/A'}</b></p>
               <p>Media Type: <b>${mediaType}</b></p>
               <p>Description: <i>${description || 'No description'}</i></p>
-              <p>Media URL: <a href="${newMedia.mediaUrl}">View Media</a></p>
+              <p>Media URLs:</p>
+              <ul>
+                ${savedMedia.map(m => `<li><a href="${m.mediaUrl}">${m.mediaUrl}</a></li>`).join("")}
+              </ul>
+
               <p>Uploaded on: ${new Date().toLocaleString()}</p>
             `,
           };
@@ -164,7 +193,7 @@ router.post("/",(req, res) => {
           });
         }
       }
-        res.status(200).json({ message: "Multimedia uploaded successfully", data: newMedia });
+        res.status(200).json({ message: "Multimedia uploaded successfully", data: savedMedia });
   
       } catch (error) {
         console.error("Error uploading media:", error);

@@ -10,8 +10,8 @@ const SignupSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: false },
     department:{type:String},
     designation:{type:String},
-    locationId:{type:String},
-     locationName: {type: String},
+    locationId:[{type:String}],
+     locationName: [{type: String}],
     companyCode: { type: String, required: false }, // Links to Company Master
     imageUrl: { type: String },
     role: { type:String, required: false },

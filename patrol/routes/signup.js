@@ -29,6 +29,18 @@ router.post("/", async (req, res) => {
         if (!username || !password || !email || !patrolGuardName || !mobileNumber || !locationId  || !roleId || !department || !designation) {
             return res.status(400).json({ message: "All fields are required" });
         }
+
+                // ✅ Validate array of locationIds
+        if (!Array.isArray(locationId) || locationId.length === 0) {
+            return res.status(400).json({ message: "locationId must be a non-empty array." });
+        }
+
+        const locationDocs = await Location.find({ locationId: { $in: locationId } });
+        if (locationDocs.length !== locationId.length) {
+            return res.status(400).json({ message: "Some locationIds are invalid." });
+        }
+
+        const locationNames = locationDocs.map(loc => loc.description);
         // ✅ Validate email formats
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         const gmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -40,11 +52,11 @@ router.post("/", async (req, res) => {
           return res.status(400).json({ message: "Email must be a valid email address." });
         }
 
-        const locationExists = await Location.findOne({locationId});
-        if (!locationExists) {
-            return res.status(400).json({ message: "Invalid locationName. Please provide a valid location." });
-        }
-            const locationName = locationExists.description;
+        // const locationExists = await Location.findOne({locationId});
+        // if (!locationExists) {
+        //     return res.status(400).json({ message: "Invalid locationName. Please provide a valid location." });
+        // }
+        //     const locationName = locationExists.description;
 
         // ✅ Lookup roleName from roleId
         const roleDoc = await Role.findOne({ roleId, isActive: true });
@@ -70,7 +82,7 @@ const userId = await generateUserId();
             patrolGuardName,
             mobileNumber,
             locationId,
-             locationName,
+             locationName:locationNames,
             imageUrl,
             roleId,
             role: roleName,
@@ -273,31 +285,27 @@ router.put("/:userId", authMiddleware,async (req, res) => {
     }
     
 
-    // ✅ Check if location exists
-    const location = await Location.findOne({ locationId });
-    if (!location) {
-      return res.status(400).json({ message: "Invalid location name" });
+
+    // ✅ Validate all locationIds exist
+    const locationDocs = await Location.find({ locationId: { $in: locationId } });
+    if (locationDocs.length !== locationId.length) {
+      return res.status(400).json({ message: "Some locationIds are invalid" });
     }
 
-    const locationCode = location.locationCode; 
-    const locationName = location.description; 
+    const locationCodes = locationDocs.map(loc => loc.locationCode);
+    const locationNames = locationDocs.map(loc => loc.description);
 
-    // ✏️ **Also update the user’s own locationCode & locationName**
-patrol.locationId   = locationId;
-patrol.locationCode = locationCode;
-patrol.locationName = locationName;
-    
-
-    // ✅ Update fields
+    // ✅ Update patrol
     patrol.username = username;
     patrol.email = email;
     patrol.patrolGuardName = patrolGuardName;
     patrol.mobileNumber = mobileNumber;
     patrol.locationId = locationId;
-    
+    patrol.locationCode = locationCodes;
+    patrol.locationName = locationNames;
+    patrol.imageUrl = imageUrl;
     patrol.department = department;
     patrol.designation = designation;
-    patrol.imageUrl = imageUrl;
     patrol.modifiedDate = new Date();
 
     // ✅ Save
@@ -308,8 +316,8 @@ patrol.locationName = locationName;
       {
         $set: {
           locationId: locationId,
-          locationCode: locationCode,
-            locationName: locationName, 
+          locationCode: locationCodes,
+            locationName: locationNames, 
           modifiedDate: new Date(), // optional
         },
       }

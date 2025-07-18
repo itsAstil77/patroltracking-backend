@@ -10,7 +10,7 @@ const generateScanningId = require("../utils/generateScanningId"); //
 // POST /scanning
 router.post("/",authMiddleware, async (req, res) => {
   try {
-    const { scanType, checklistId, coordinates } = req.body;
+    const { scanType, checklistId, coordinates,scanStartDate } = req.body;
 
     // Validate required fields
     if (!scanType || !checklistId || !coordinates) {
@@ -35,7 +35,7 @@ router.post("/",authMiddleware, async (req, res) => {
     // const now = new Date();
     // const scanDate = now;
     // const scanTime = now.toTimeString().split(" ")[0]; // "HH:MM:SS"
-    const scanStartDate = new Date(); // 
+   const scanStart = scanStartDate ? new Date(scanStartDate) : new Date();
 
     // Create scan entry
     const newScan = new Scanning({
@@ -43,7 +43,7 @@ router.post("/",authMiddleware, async (req, res) => {
       scanType,
       checklistId,
       coordinates,
-      scanStartDate,
+      scanStartDate: scanStart,
       status: "Success",
       createdBy: req.user?.username || "System", // optional: from authMiddleware
       modifiedBy: req.user?.username || "System"
@@ -51,13 +51,12 @@ router.post("/",authMiddleware, async (req, res) => {
 
     await newScan.save();
         // Update the checklist with the scanStartDate
-        await Checklist.findOneAndUpdate(
-          { checklistId },
-          { $set: { scanStartDate: scanStartDate,
-            coordinates: coordinates 
-           } }, // Assuming you're adding this field in the Checklist collection
-          { new: true }
-        );
+       await Checklist.findOneAndUpdate(
+  { checklistId },
+  { $set: { scanStartDate: scanStart, coordinates: coordinates } },
+  { new: true }
+);
+
     
         res.status(200).json({ message: "Scan recorded and checklist updated successfully", data: newScan });
 

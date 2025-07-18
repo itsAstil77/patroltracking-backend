@@ -111,15 +111,34 @@ router.put('/assign', authMiddleware,async (req, res) => {
             return res.status(400).json({ message: 'Invalid admin ID s' });
         }
 
-            // ✅ Get patrol's locationId
-            const patrolLocationId = assignedUser.locationId;
+    //         // ✅ Get patrol's locationId
+    //         const patrolLocationId = assignedUser.locationId;
 
-                    // ✅ Find locationCode using locationName
-            const location = await Location.findOne({ locationId:patrolLocationId});
-    if (!location) {
-      return res.status(400).json({ message: 'Location not found for the patrol' });
-    }
-    const locationCode = location.locationCode;
+    //                 // ✅ Find locationCode using locationName
+    //         const location = await Location.findOne({ locationId:patrolLocationId});
+    // if (!location) {
+    //   return res.status(400).json({ message: 'Location not found for the patrol' });
+    // }
+    // const locationCode = location.locationCode;
+
+
+    // ✅ Get all locationIds from the patrol user (array)
+const patrolLocationIds = assignedUser.locationId;
+
+// ✅ Fetch all matching location documents
+const locations = await Location.find({ locationId: { $in: patrolLocationIds } });
+
+if (locations.length !== patrolLocationIds.length) {
+    return res.status(400).json({ message: 'Some locationIds for the user are invalid or missing' });
+}
+
+// ✅ Extract all locationCodes
+const locationCodes = locations.map(loc => loc.locationCode);
+const locationNames = patrolLocationIds.map(id => {
+  const loc = locations.find(l => l.locationId === id);
+  return loc?.description || "";
+});
+
 
         // ✅ Find all checklists and update them
         const checklists = await Checklist.find({ checklistId: { $in: checklistIds } });
@@ -142,8 +161,9 @@ router.put('/assign', authMiddleware,async (req, res) => {
             checklist.assignedTo = assignedTo;
             checklist.assignedBy = assignedBy;
             checklist.status = 'Open'; // or "Assigned"
-            checklist.locationId = patrolLocationId; // 
-            checklist.locationCode = locationCode;
+            checklist.locationId = patrolLocationIds; // 
+            checklist.locationCode = locationCodes;
+              checklist.locationName = locationNames; 
             return checklist.save();
         });
 
@@ -182,12 +202,15 @@ router.get("/:workflowId", authMiddleware, async (req, res) => {
 router.patch("/end/:checklistId", authMiddleware, async (req, res) => {
     try {
       const { checklistId } = req.params;
+         const { scanEndDate } = req.body;
+
+             const endDate = scanEndDate ? new Date(scanEndDate) : new Date();
   
       const updatedChecklist = await Checklist.findOneAndUpdate(
         { checklistId },
         {
           $set: {
-            scanEndDate: new Date(), // set to now
+             scanEndDate: endDate,
             modifiedDate: new Date(),
             modifiedBy: req.user?.username || "System",
           },

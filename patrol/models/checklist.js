@@ -4,8 +4,8 @@ const mongoose = require('mongoose');
 const checklistSchema = new mongoose.Schema({
   checklistId: { type: String, required: true, unique: true },
   workflowId: { type: String, required: true },
-  locationName: { type: String, required: false },
-  locationCode: { type: String },
+  locationName: [{ type: String, required: false }],
+  locationCode: [{ type: String }],
   title: { type: String, required: true },
   remarks: { type: String },
   status: { type: String, enum: ['Unassigned', 'Open', 'Completed','Completed with MME'], default: 'Unassigned' },
