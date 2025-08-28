@@ -90,7 +90,8 @@ router.post('/',authMiddleware, async (req, res) => {
 
 
 // routes/checklist.js
-router.put('/assign', authMiddleware,async (req, res) => {
+// routes/checklist.js
+router.put('/assign',async (req, res) => {
     try {
         const { checklistIds, assignedTo, assignedBy } = req.body;
 
@@ -98,12 +99,15 @@ router.put('/assign', authMiddleware,async (req, res) => {
             return res.status(400).json({ message: 'Select tasks to Assign to a User' });
         }
 
-        // ✅ Validate assignedTo user is not an Admin
-        const assignedUser = await Signup.findOne({ userId: assignedTo, role: { $ne: 'Admin' } });
-        if (!assignedUser) {
-            return res.status(400).json({ message: 'Invalid user ID or user is an Admin' });
-        }
+        // ✅ Validate assigned users (all must be Patrols, not Admins)
+        const assignedUsers = await Signup.find({
+        userId: { $in: assignedTo },
+        role: { $ne: 'Admin' }
+        });
 
+        if (assignedUsers.length !== assignedTo.length) {
+        return res.status(400).json({ message: 'One or more users are invalid or Admins' });
+        }
 
         // ✅ Validate admin
         const admin = await Signup.findOne({ userId: assignedBy, role: 'Admin' });
@@ -121,9 +125,8 @@ router.put('/assign', authMiddleware,async (req, res) => {
     // }
     // const locationCode = location.locationCode;
 
-
-    // ✅ Get all locationIds from the patrol user (array)
-const patrolLocationIds = assignedUser.locationId;
+    // ✅ Collect all unique locationIds for the patrols
+    const patrolLocationIds = [...new Set(assignedUsers.flatMap(u => u.locationId))];
 
 // ✅ Fetch all matching location documents
 const locations = await Location.find({ locationId: { $in: patrolLocationIds } });
