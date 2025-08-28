@@ -9,7 +9,7 @@ const checklistSchema = new mongoose.Schema({
   title: { type: String, required: true },
   remarks: { type: String },
   status: { type: String, enum: ['Unassigned', 'Open', 'Completed','Completed with MME'], default: 'Unassigned' },
-  assignedTo: { type: String },
+  assignedTo: [{ type: String }],
   assignedBy: { type: String},
   coordinates:{type:String},
 geoCoordinates: {
