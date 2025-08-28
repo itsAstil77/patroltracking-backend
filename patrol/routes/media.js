@@ -57,7 +57,7 @@ function fileFilter(req, file, cb) {
   const allowedMimeTypes = [
     "image/jpeg", "image/png", "image/jpg",
     "video/mp4", "video/mpeg", "video/avi", "video/webm",
-    "audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/webm"
+    "audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/webm", "audio/aac", "audio/x-aac"  
   ];
 
   if (!allowedMimeTypes.includes(file.mimetype)) {
