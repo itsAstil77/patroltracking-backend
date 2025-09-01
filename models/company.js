@@ -9,7 +9,7 @@ const MasterSchema = new mongoose.Schema({
     modifiedBy:{type:String},
     createdDate: { type: Date, default: Date.now },
     modifiedDate: { type: Date, default: Date.now },
-    // isActive: { type: Boolean, default: true }
+    isActive: { type: Boolean, default: true }
 });
 
 // ✅ Export the Master model
